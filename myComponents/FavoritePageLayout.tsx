@@ -1,21 +1,93 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FiX, FiShoppingCart, FiArrowLeft } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { DUMMY_PRODUCTS, Product } from "@/lib/products";
+import { IProduct } from "@/models/Products";
+import { useCartStore } from "@/store/useCartStore";
+import { useSession } from "next-auth/react";
 
 export default function FavoritePageLayout() {
-  // Extract initial items marked true inside global seed dataset records
-  const [favItems, setFavItems] = useState<Product[]>(
-    DUMMY_PRODUCTS.filter((product) => product.favourite),
+  const { data: session } = useSession();
+  const [products, setProducts] = useState<IProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const fetchCart = useCartStore((state) => state.fetchCartItems);
+  const fetchUserData = useCartStore((state) => state.fetchUserData);
+
+  //pull the array of cart items from the zustand store
+  const {
+    cartItems,
+    updateQuantity,
+    addToCart,
+    toggleFavorite,
+    favoriteItems,
+  } = useCartStore();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (session?.user) {
+      fetchCart();
+      fetchUserData();
+    }
+
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      setErrorStatus(null);
+
+      try {
+        const response = await fetch("/api/products");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error || "Product not found");
+        }
+
+        if (isMounted) {
+          setProducts(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error("Error fetching Products:", error);
+        if (isMounted) {
+          setErrorStatus(
+            error instanceof Error ? error.message : "Failed to load product",
+          );
+          setProducts([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session, fetchCart, fetchUserData]);
+
+  const favoriteProducts = React.useMemo(() => {
+    const favIds = new Set(favoriteItems.map(String));
+    return products.filter((product) => {
+      const productId = product._id?.toString() ?? product.id?.toString();
+      return productId ? favIds.has(productId) : false;
+    });
+  }, [products, favoriteItems]);
+
+  //check if card product id is in the favorite items array
+  const isFavorite = useCartStore((state) =>
+    state.favoriteItems.includes(products?.[0]?._id?.toString() ?? ""),
   );
 
   // Dynamic Array Removal Execution Pipeline
-  const removeFavorite = (id: number) => {
-    setFavItems((prev) => prev.filter((item) => item.id !== id));
+  const removeFavorite = (id: string) => {
+    toggleFavorite(id);
   };
 
   return (
@@ -39,30 +111,32 @@ export default function FavoritePageLayout() {
           </Link>
         </div>
 
-        {favItems.length > 0 ? (
+        {favoriteProducts.length > 0 ? (
           /* Balanced Layout Presentation Matrix Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {favItems.map((item) => (
+            {favoriteProducts.map((item) => (
               <div
-                key={item.id}
+                key={item._id.toString()}
                 className="group relative bg-white border border-zinc-100 p-6 flex flex-col justify-between transition-all duration-500 hover:shadow-2xl hover:border-zinc-200"
               >
                 {/* Absolute Top Control Action Vector Ribbon */}
-                <button
-                  onClick={() => removeFavorite(item.id)}
+
+                {/* <button
+                  onClick={() => removeFavorite(item?.id)}
                   className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-md rounded-full shadow-sm hover:bg-red-50 border border-zinc-100 group/btn transition-colors"
                   aria-label="Remove item configuration out of active memory scope array"
                 >
                   <FiX className="h-3.5 w-3.5 text-zinc-400 group-hover/btn:text-red-600 transition-colors" />
-                </button>
+                </button> */}
 
                 {/* Main Product Frame Layout Presentation Link Block Container */}
-                <Link href={`/products/${item.id}`} className="block">
+                <Link href={`/products/${item?._id}`} className="block">
                   <div className="w-full h-56 relative mb-6 overflow-hidden bg-zinc-50/50">
                     <Image
                       src={item.image}
                       alt={item.title}
                       fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       className="object-contain p-4 transform transition-transform duration-700 ease-out group-hover:scale-105"
                     />
                   </div>
@@ -79,9 +153,9 @@ export default function FavoritePageLayout() {
                 </Link>
 
                 {/* Secondary Tactical Implementation Interaction Pipeline CTA */}
-                <Button className="w-full bg-black hover:bg-red-600 text-white rounded-none py-5 text-xs font-black tracking-widest uppercase transition-all duration-300">
+                {/* <Button className="w-full bg-black hover:bg-red-600 text-white rounded-none py-5 text-xs font-black tracking-widest uppercase transition-all duration-300">
                   <FiShoppingCart className="mr-2 h-4 w-4" /> Deploy to Cart
-                </Button>
+                </Button> */}
               </div>
             ))}
           </div>

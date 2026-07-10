@@ -7,7 +7,7 @@ import { Footer } from "@/myComponents/Footer";
 export default function Products() {
   return (
     <div>
-      <Navbar isLoggedIn={true} cartCount={5} favIconCount={9} />
+      <Navbar />
       <ProductsPage />
       <Footer />
     </div>

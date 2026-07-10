@@ -52,6 +52,8 @@ export const Banner: React.FC = () => {
             alt={slide.title}
             fill
             priority={index === 0}
+            loading="eager"
+            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 80vw"
             className="object-cover object-center brightness-[0.45]"
           />
 

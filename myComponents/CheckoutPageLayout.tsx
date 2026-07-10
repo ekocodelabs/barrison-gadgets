@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -9,43 +9,174 @@ import {
   FiCreditCard,
   FiLock,
   FiCheckCircle,
+  FiHash,
+  FiGlobe,
+  FiHome,
+  FiMapPin,
 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
-import { DUMMY_PRODUCTS } from "@/lib/products";
+import { useCartStore } from "@/store/useCartStore";
+import { useSession } from "next-auth/react";
+import { IProduct } from "@/models/Products";
 
 export default function CheckoutPageLayout() {
-  // Pull exactly 3 tracking assets out of data library array to emulate cart contents
-  const checkoutItems = useMemo(() => DUMMY_PRODUCTS.slice(0, 3), []);
+  //pull the array of cart items from the zustand store
+  const { cartItems, clearCart } = useCartStore();
+  const { data: session } = useSession();
+  const [products, setProducts] = useState<IProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const fetchCart = useCartStore((state) => state.fetchCartItems);
+  const fetchUserData = useCartStore((state) => state.fetchUserData);
 
   // Form State Capture Elements
-  const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"online" | "delivery">(
     "online",
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  // 1. Structure the shipping address using a clean nested object state matching your schema
+  const [shippingAddress, setShippingAddress] = useState({
+    street: "",
+    city: "",
+    state: "",
+    postalCode: "",
+  });
 
-  // Financial Numerical Matrix Calculations
-  const subtotal = useMemo(() => {
-    return checkoutItems.reduce((sum, item) => sum + item.price, 0);
-  }, [checkoutItems]);
+  //  Uniform event abstraction handling nested property mutations safely
+  const handleAddressChange = (
+    field: keyof typeof shippingAddress,
+    value: string,
+  ) => {
+    setShippingAddress((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
-  const deliveryFee = 3500; // Base logistics calculation flat rate in NGN
-  const grandTotal = subtotal + deliveryFee;
+  // Client side evaluation mapping required verification conditions before submitting
+  const isFormValid =
+    phone.trim() !== "" &&
+    shippingAddress.street.trim() !== "" &&
+    shippingAddress.city.trim() !== "" &&
+    shippingAddress.state.trim() !== "" &&
+    shippingAddress.postalCode.trim() !== "";
 
   // Structural Processing Operation Handlers
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!address || !phone) return;
-
     setIsSubmitting(true);
-    // Emulate premium payment core response dispatch timing
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
-    }, 2000);
+
+    // Complete structured layout data block ready to route directly to your API endpoint
+    const payload = {
+      phone,
+      shippingAddress,
+      paymentMethod,
+    };
+
+    //check payment method
+    if (payload.paymentMethod === "delivery") {
+      //call api endpoint to submit the order
+      fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            setIsSuccess(true);
+            clearCart();
+          }
+        })
+        .catch((error) => {
+          console.error("Error submitting order:", error);
+        })
+        .finally(() => {
+          setIsSubmitting(false);
+        });
+
+      console.log("Transmitting order transaction package payload...", payload);
+      // Simulate pipeline connection latency
+      setTimeout(() => setIsSubmitting(false), 2000);
+    } else {
+      //call paystack api, and then create order in paystack webhook
+    }
   };
+
+  const quantities = React.useMemo(
+    () =>
+      cartItems.reduce<Record<string, string>>((acc, item) => {
+        acc[item.productId] = String(item.quantity || 1);
+        return acc;
+      }, {}),
+    [cartItems],
+  );
+
+  const cartProducts = React.useMemo(() => {
+    const cartIds = new Set(cartItems.map((item) => item.productId));
+    return products.filter((product) => {
+      const productId = product._id?.toString() ?? product.id?.toString();
+      return productId ? cartIds.has(productId) : false;
+    });
+  }, [products, cartItems]);
+
+  const subtotal = cartProducts.reduce((sum, product) => {
+    const productId = product._id?.toString() ?? product.id?.toString() ?? "";
+    const quantity = Number(quantities[productId] || "1");
+    return sum + product.price * quantity;
+  }, 0);
+
+  const deliveryFee = subtotal > 0 ? 6000 : 0;
+  const grandTotal = subtotal + deliveryFee;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (session?.user) {
+      fetchCart();
+      fetchUserData();
+    }
+
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      setErrorStatus(null);
+
+      try {
+        const response = await fetch("/api/products");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error || "Product not found");
+        }
+
+        if (isMounted) {
+          setProducts(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error("Error fetching Products:", error);
+        if (isMounted) {
+          setErrorStatus(
+            error instanceof Error ? error.message : "Failed to load product",
+          );
+          setProducts([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session, fetchCart, fetchUserData]);
 
   if (isSuccess) {
     return (
@@ -101,34 +232,96 @@ export default function CheckoutPageLayout() {
                   01 // Logistics Coordinates
                 </h2>
                 <div className="space-y-6">
-                  {/* Address Field */}
+                  {/* Street Address Input Field */}
                   <div className="flex flex-col border-b border-zinc-200 focus-within:border-black transition-colors py-2">
-                    <label className="text-[10px] font-black tracking-wider uppercase text-zinc-400 mb-1">
-                      Physical Delivery Address
+                    <label className="text-[10px] font-black tracking-wider uppercase text-zinc-400 mb-1 flex items-center gap-2">
+                      <FiHome className="text-zinc-400 h-3 w-3" /> Street
+                      Address
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. 12 Architectural Avenue, Ikoyi, Lagos"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="bg-transparent text-sm font-light text-black placeholder-zinc-300 focus:outline-none w-full"
+                      placeholder="e.g. 12 Architectural Avenue, Victoria Island"
+                      value={shippingAddress.street}
+                      onChange={(e) =>
+                        handleAddressChange("street", e.target.value)
+                      }
+                      className="bg-transparent text-sm font-light text-black placeholder-zinc-300 focus:outline-none w-full uppercase tracking-wide"
                     />
                   </div>
 
-                  {/* Phone Field */}
-                  <div className="flex flex-col border-b border-zinc-200 focus-within:border-black transition-colors py-2">
-                    <label className="text-[10px] font-black tracking-wider uppercase text-zinc-400 mb-1">
-                      Active Phone Contact
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="e.g. +234 803 000 0000"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="bg-transparent text-sm font-light text-black placeholder-zinc-300 focus:outline-none w-full"
-                    />
+                  {/* City & State Split Row Matrix (Cleans up layout footprint vertically) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* City Field */}
+                    <div className="flex flex-col border-b border-zinc-200 focus-within:border-black transition-colors py-2">
+                      <label className="text-[10px] font-black tracking-wider uppercase text-zinc-400 mb-1 flex items-center gap-2">
+                        <FiMapPin className="text-zinc-400 h-3 w-3" /> City /
+                        Locality
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Ikoyi"
+                        value={shippingAddress.city}
+                        onChange={(e) =>
+                          handleAddressChange("city", e.target.value)
+                        }
+                        className="bg-transparent text-sm font-light text-black placeholder-zinc-300 focus:outline-none w-full uppercase tracking-wide"
+                      />
+                    </div>
+
+                    {/* State Field */}
+                    <div className="flex flex-col border-b border-zinc-200 focus-within:border-black transition-colors py-2">
+                      <label className="text-[10px] font-black tracking-wider uppercase text-zinc-400 mb-1 flex items-center gap-2">
+                        <FiGlobe className="text-zinc-400 h-3 w-3" /> State /
+                        Region
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Lagos"
+                        value={shippingAddress.state}
+                        onChange={(e) =>
+                          handleAddressChange("state", e.target.value)
+                        }
+                        className="bg-transparent text-sm font-light text-black placeholder-zinc-300 focus:outline-none w-full uppercase tracking-wide"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Postal Code & Phone Number Split Row Matrix */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Postal Code Field */}
+                    <div className="flex flex-col border-b border-zinc-200 focus-within:border-black transition-colors py-2">
+                      <label className="text-[10px] font-black tracking-wider uppercase text-zinc-400 mb-1 flex items-center gap-2">
+                        <FiHash className="text-zinc-400 h-3 w-3" /> Postal Code
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 101233"
+                        value={shippingAddress.postalCode}
+                        onChange={(e) =>
+                          handleAddressChange("postalCode", e.target.value)
+                        }
+                        className="bg-transparent text-sm font-light text-black placeholder-zinc-300 focus:outline-none w-full font-mono tracking-widest"
+                      />
+                    </div>
+
+                    {/* Phone Contact Field */}
+                    <div className="flex flex-col border-b border-zinc-200 focus-within:border-black transition-colors py-2">
+                      <label className="text-[10px] font-black tracking-wider uppercase text-zinc-400 mb-1">
+                        Active Phone Contact
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="e.g. +234 803 000 0000"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="bg-transparent text-sm font-light text-black placeholder-zinc-300 focus:outline-none w-full tracking-wider"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -142,7 +335,7 @@ export default function CheckoutPageLayout() {
                   {/* Option Pay Online */}
                   <div
                     onClick={() => setPaymentMethod("online")}
-                    className={`border p-5 cursor-pointer flex flex-col justify-between h-32 transition-all duration-300 ${
+                    className={`border p-5 cursor-pointer flex flex-col justify-between h-32 transition-all duration-300 rounded-none ${
                       paymentMethod === "online"
                         ? "border-red-600 bg-red-50/10"
                         : "border-zinc-200 hover:border-black"
@@ -155,8 +348,8 @@ export default function CheckoutPageLayout() {
                       <span className="text-xs font-black uppercase tracking-tight block text-black">
                         Pay Online
                       </span>
-                      <span className="text-[9px] uppercase text-zinc-400 font-light">
-                        Instant deployment authorization
+                      <span className="text-[9px] uppercase text-zinc-400 font-light tracking-wide">
+                        Instant checkout verification deployment
                       </span>
                     </div>
                   </div>
@@ -164,7 +357,7 @@ export default function CheckoutPageLayout() {
                   {/* Option Cash on Delivery */}
                   <div
                     onClick={() => setPaymentMethod("delivery")}
-                    className={`border p-5 cursor-pointer flex flex-col justify-between h-32 transition-all duration-300 ${
+                    className={`border p-5 cursor-pointer flex flex-col justify-between h-32 transition-all duration-300 rounded-none ${
                       paymentMethod === "delivery"
                         ? "border-red-600 bg-red-50/10"
                         : "border-zinc-200 hover:border-black"
@@ -177,8 +370,8 @@ export default function CheckoutPageLayout() {
                       <span className="text-xs font-black uppercase tracking-tight block text-black">
                         Pay On Delivery
                       </span>
-                      <span className="text-[9px] uppercase text-zinc-400 font-light">
-                        Settlement at point of delivery
+                      <span className="text-[9px] uppercase text-zinc-400 font-light tracking-wide">
+                        Settlement at physical handoff terminal point
                       </span>
                     </div>
                   </div>
@@ -188,7 +381,7 @@ export default function CheckoutPageLayout() {
               {/* Execution Action Button Submission */}
               <Button
                 type="submit"
-                disabled={isSubmitting || !address || !phone}
+                disabled={isSubmitting || !isFormValid}
                 className="w-full bg-black hover:bg-red-600 text-white font-black text-xs tracking-widest uppercase py-6 rounded-none transition-all duration-300 disabled:opacity-30 disabled:hover:bg-black"
               >
                 {isSubmitting
@@ -206,9 +399,9 @@ export default function CheckoutPageLayout() {
 
             {/* Micro List Matrix of items selected */}
             <div className="space-y-4 mb-8">
-              {checkoutItems.map((item) => (
+              {cartProducts.map((item) => (
                 <div
-                  key={item.id}
+                  key={item._id.toString()}
                   className="flex items-center gap-4 bg-white p-3 border border-zinc-100"
                 >
                   <div className="relative h-14 w-14 border border-zinc-50 bg-zinc-50/50 p-1 shrink-0">
@@ -216,6 +409,7 @@ export default function CheckoutPageLayout() {
                       src={item.image}
                       alt={item.title}
                       fill
+                      sizes="56px"
                       className="object-contain"
                     />
                   </div>

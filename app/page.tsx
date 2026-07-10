@@ -8,7 +8,7 @@ import { SpeakerBanner } from "@/myComponents/SpeakerBanner";
 export default function Home() {
   return (
     <>
-      <Navbar isLoggedIn={true} cartCount={5} favIconCount={9} />
+      <Navbar />
       <Banner />
       <PowerbankBanner />
       <AudioBanner />

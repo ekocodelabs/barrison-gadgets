@@ -2,31 +2,47 @@
 
 import React from "react";
 import Image from "next/image";
-import useRouter from "next/navigation"; // Next.js App Router navigation hooks
-import { FiHeart, FiShoppingCart, FiStar } from "react-icons/fi";
+import { useRouter } from "next/navigation";
+import { FiHeart, FiShoppingCart } from "react-icons/fi";
 import { FaStar } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
-import { Product } from "@/lib/products";
+import { IProduct } from "@/models/Products";
+import { useCartStore } from "@/store/useCartStore";
+import { useSession } from "next-auth/react";
 
 interface ProductCardProps {
-  id: number;
-  product: Product;
+  _id: string;
+  product: IProduct;
   onToggleFavourite?: (id: number) => void;
   onAddToCart?: (id: number) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
-  id,
+  _id,
   product,
   onToggleFavourite,
   onAddToCart,
 }) => {
-  const router = useRouter.useRouter();
+  const router = useRouter();
 
   // Route directly to standard dynamic product item specification path
   const handleNavigation = () => {
-    router.push(`/products/${id}`);
+    router.push(`/products/${_id}`);
   };
+
+  //pull the array of cart items from the zustand store
+  const { cartItems, updateQuantity, addToCart, toggleFavorite } =
+    useCartStore();
+
+  //check if card product id is in the cart items array
+  const isInCart = cartItems.some((item) => item.productId === _id);
+
+  //check if card product id is in the favorite items array
+  const isFavorite = useCartStore((state) => state.favoriteItems.includes(_id));
+
+  const currentQuantity =
+    cartItems.find((item) => item.productId === _id)?.quantity || 0;
+
   return (
     <div
       onClick={handleNavigation}
@@ -37,14 +53,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <button
           onClick={(e) => {
             e.stopPropagation(); // Shield child triggers from global navigation
-            if (onToggleFavourite) onToggleFavourite(product.id);
+            toggleFavorite(_id);
           }}
           className="p-2 bg-white/80 backdrop-blur-md rounded-full shadow-sm hover:bg-zinc-50 border border-zinc-100 transition-colors"
           aria-label="Toggle Favourite"
         >
           <FiHeart
             className={`h-4 w-4 transition-colors ${
-              product.favourite
+              isFavorite
                 ? "fill-red-600 text-red-600"
                 : "text-zinc-400 group-hover:text-black"
             }`}
@@ -58,7 +74,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           src={product.image}
           alt={product.title}
           fill
-          sizes="(max-w-7xl) 33vw, 50vw"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-contain p-6 transform transition-transform duration-700 ease-out group-hover:scale-105"
         />
       </div>
@@ -97,20 +113,45 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </span>
           </div>
 
-          <Button
-            onClick={(e) => {
-              e.stopPropagation(); // Avoid accidental detail layout redirections
-              if (onAddToCart) onAddToCart(product.id);
-            }}
-            className={`rounded-none px-4 py-5 font-bold text-xs tracking-widest uppercase transition-all duration-300 ${
-              product.addtocart
-                ? "bg-zinc-100 hover:bg-zinc-200 text-zinc-800"
-                : "bg-black hover:bg-red-600 text-white"
-            }`}
-          >
-            <FiShoppingCart className="mr-2 h-4 w-4" />
-            {product.addtocart ? "Added" : "Add"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {isInCart ? (
+              /* If the product is already in the cart, show quantity controls */
+              <div className="inline-flex items-center border border-zinc-200 bg-white">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateQuantity(product._id.toString(), currentQuantity - 1);
+                  }}
+                  className="px-2 py-1 text-sm font-bold text-zinc-600 hover:bg-zinc-200"
+                >
+                  -
+                </button>
+                <span className="px-2 py-1 text-sm font-bold text-zinc-600">
+                  {currentQuantity}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateQuantity(product._id.toString(), currentQuantity + 1);
+                  }}
+                  className="px-2 py-1 text-sm font-bold text-zinc-600 hover:bg-zinc-200"
+                >
+                  +
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToCart(product._id.toString());
+                }}
+                className="px-4 py-2 bg-red-600 text-white font-bold text-xs tracking-widest uppercase transition-all duration-300 hover:bg-red-700"
+              >
+                <FiShoppingCart className="mr-2 h-4 w-4" />
+                Add to Cart
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

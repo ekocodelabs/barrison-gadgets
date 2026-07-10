@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -11,41 +11,107 @@ import {
   FiCreditCard,
 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
-import { DUMMY_PRODUCTS, Product } from "@/lib/products";
+import { IProduct } from "@/models/Products";
+import { useCartStore } from "@/store/useCartStore";
+import { useSession } from "next-auth/react";
 
 export default function CartPageLayout() {
-  // Extract initial active item states directly from local simulation array
-  const [cartItems, setCartItems] = useState<Product[]>(
-    DUMMY_PRODUCTS.filter((product) => product.addtocart),
+  const { data: session } = useSession();
+  const [products, setProducts] = useState<IProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const fetchCart = useCartStore((state) => state.fetchCartItems);
+  const fetchUserData = useCartStore((state) => state.fetchUserData);
+
+  //pull the array of cart items from the zustand store
+  const { cartItems, updateQuantity, addToCart, toggleFavorite } =
+    useCartStore();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (session?.user) {
+      fetchCart();
+      fetchUserData();
+    }
+
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      setErrorStatus(null);
+
+      try {
+        const response = await fetch("/api/products");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error || "Product not found");
+        }
+
+        if (isMounted) {
+          setProducts(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error("Error fetching Products:", error);
+        if (isMounted) {
+          setErrorStatus(
+            error instanceof Error ? error.message : "Failed to load product",
+          );
+          setProducts([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session, fetchCart, fetchUserData]);
+
+  const quantities = React.useMemo(
+    () =>
+      cartItems.reduce<Record<string, string>>((acc, item) => {
+        acc[item.productId] = String(item.quantity || 1);
+        return acc;
+      }, {}),
+    [cartItems],
   );
 
-  // Maintain separate local records tracking item volume quantities per id string
-  const [quantities, setQuantities] = useState<Record<number, number>>(
-    cartItems.reduce((acc, item) => ({ ...acc, [item.id]: 1 }), {}),
-  );
+  const cartProducts = React.useMemo(() => {
+    const cartIds = new Set(cartItems.map((item) => item.productId));
+    return products.filter((product) => {
+      const productId = product._id?.toString() ?? product.id?.toString();
+      return productId ? cartIds.has(productId) : false;
+    });
+  }, [products, cartItems]);
 
   // Pure Numerical State Mutations
-  const updateQuantity = (id: number, delta: number) => {
-    setQuantities((prev) => {
-      const current = prev[id] || 1;
-      const nextValue = current + delta;
-      return { ...prev, [id]: nextValue > 0 ? nextValue : 1 };
-    });
-  };
+  // const updateQuantity = (id: number, delta: number) => {
+  //   setQuantities((prev) => {
+  //     const current = prev[id] || 1;
+  //     const nextValue = current + delta;
+  //     return { ...prev, [id]: nextValue > 0 ? nextValue : 1 };
+  //   });
+  // };
 
   // Structural Removal Vector Array pipeline handlers
-  const removeItem = (id: number) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
+  const removeItem = (id: string) => {
+    updateQuantity(id, 0);
   };
 
   // Financial Pricing Engine Computations
-  const subtotal = cartItems.reduce((sum, item) => {
-    const qty = quantities[item.id] || 1;
-    return sum + item.price * qty;
+  const subtotal = cartProducts.reduce((sum, product) => {
+    const productId = product._id?.toString() ?? product.id?.toString() ?? "";
+    const quantity = Number(quantities[productId] || "1");
+    return sum + product.price * quantity;
   }, 0);
 
-  const shippingFees = subtotal > 1500 || subtotal === 0 ? 0 : 50;
-  const grandTotal = subtotal + shippingFees;
+  const deliveryFee = subtotal > 0 ? 6000 : 0;
+  const grandTotal = subtotal + deliveryFee;
 
   return (
     <main className="bg-white min-h-screen py-16 text-black">
@@ -64,11 +130,16 @@ export default function CartPageLayout() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
             {/* Left Column Stack: Cart Row Line Items Array (8 Cols) */}
             <div className="lg:col-span-8 space-y-6">
-              {cartItems.map((item) => {
-                const itemQty = quantities[item.id] || 1;
+              {cartProducts.map((item) => {
+                const itemId =
+                  item._id?.toString() ?? item.id?.toString() ?? "";
+                const itemQty = quantities[itemId] || "1";
+                const currentQuantity =
+                  cartItems.find((cartItem) => cartItem.productId === itemId)
+                    ?.quantity || 0;
                 return (
                   <div
-                    key={item.id}
+                    key={itemId}
                     className="flex flex-col sm:flex-row items-center justify-between p-6 bg-zinc-50 border border-zinc-100 gap-6 transition-all duration-300 hover:border-zinc-200"
                   >
                     {/* Item Core Identifier Asset */}
@@ -78,6 +149,7 @@ export default function CartPageLayout() {
                           src={item.image}
                           alt={item.title}
                           fill
+                          sizes="96px"
                           className="object-contain"
                         />
                       </div>
@@ -89,7 +161,7 @@ export default function CartPageLayout() {
                           {item.title}
                         </h3>
                         <p className="text-xs font-black text-red-600 mt-1">
-                          NGN {item.price.toLocaleString()}
+                          NGN {item.price}
                         </p>
                       </div>
                     </div>
@@ -98,17 +170,25 @@ export default function CartPageLayout() {
                     <div className="flex items-center justify-between sm:justify-end gap-8 w-full sm:w-auto border-t sm:border-none pt-4 sm:pt-0">
                       <div className="inline-flex items-center border border-zinc-200 bg-white">
                         <button
-                          onClick={() => updateQuantity(item.id, -1)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+
+                            updateQuantity(itemId, currentQuantity - 1);
+                          }}
                           className="p-2 text-zinc-500 hover:text-black transition-colors"
                           aria-label="Decrease tracking target quantity"
                         >
                           <FiMinus className="h-3 w-3" />
                         </button>
                         <span className="w-8 text-center text-xs font-mono font-bold">
-                          {itemQty}
+                          {currentQuantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.id, 1)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+
+                            updateQuantity(itemId, currentQuantity + 1);
+                          }}
                           className="p-2 text-zinc-500 hover:text-black transition-colors"
                           aria-label="Increase tracking target quantity"
                         >
@@ -118,12 +198,12 @@ export default function CartPageLayout() {
 
                       {/* Cumulative Row Arithmetic Result */}
                       <span className="text-sm font-black tracking-tight min-w-17.5 text-right">
-                        NGN {(item.price * itemQty).toLocaleString()}
+                        NGN {(item.price * currentQuantity).toLocaleString()}
                       </span>
 
                       {/* Line Item Deletion Anchor Button */}
                       <button
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => removeItem(itemId)}
                         className="p-2 text-zinc-400 hover:text-red-600 transition-colors"
                         aria-label="Purge line item from cart array system structure"
                       >
@@ -158,9 +238,9 @@ export default function CartPageLayout() {
                 <div className="flex justify-between text-zinc-400">
                   <span>Premium Logistics Delivery</span>
                   <span className="font-mono text-white">
-                    {shippingFees === 0
-                      ? "Complimentary"
-                      : `NGN ${shippingFees}.00`}
+                    {deliveryFee > 0
+                      ? `NGN ${deliveryFee.toLocaleString()}`
+                      : "Free"}
                   </span>
                 </div>
                 <div className="border-t border-zinc-800 my-4 pt-4 flex justify-between text-sm font-black tracking-tight">

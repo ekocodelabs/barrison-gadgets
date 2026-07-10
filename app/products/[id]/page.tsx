@@ -1,19 +1,18 @@
 import { Footer } from "@/myComponents/Footer";
 import { Navbar } from "@/myComponents/Navbar";
 import ProductDetailsPage from "@/myComponents/ProductDetailsPage";
-import React from "react";
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default function ProductDetails({ params }: PageProps) {
-  const paramsPromise = Promise.resolve(params);
+export default async function ProductDetails({ params }: PageProps) {
+  const resolvedParams = await params;
 
   return (
     <>
-      <Navbar isLoggedIn={true} cartCount={5} favIconCount={9} />
-      <ProductDetailsPage params={paramsPromise} />
+      <Navbar />
+      <ProductDetailsPage params={resolvedParams} />
       <Footer />
     </>
   );

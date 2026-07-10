@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -15,31 +15,97 @@ import {
 } from "react-icons/fi";
 import { FaStar } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
-import { DUMMY_PRODUCTS } from "@/lib/products";
+import { IProduct } from "@/models/Products";
+import { useCartStore } from "@/store/useCartStore";
+import { useSession } from "next-auth/react";
 
-// Declare strict parameter contract types for the dynamic router configuration
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 export default function ProductDetailsPage({ params }: PageProps) {
-  // Synchronously safely unwrap the async route variables
-  const resolvedParams = React.use(params);
-  const productId = Number(resolvedParams.id);
+  const productId = params.id;
+  const { data: session } = useSession();
+  // Single product state block container
+  const [product, setProduct] = useState<IProduct | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorStatus, setErrorStatus] = useState<string | null>(null);
 
-  // Locate the target architectural item within master catalog array
-  const product = DUMMY_PRODUCTS.find((item) => item.id === productId);
+  const fetchCart = useCartStore((state) => state.fetchCartItems);
+  const fetchUserData = useCartStore((state) => state.fetchUserData);
+  const favoriteItems = useCartStore((state) => state.favoriteItems);
 
-  // Core Dynamic Micro-States
-  const [quantity, setQuantity] = React.useState(1);
-  const [isFavourite, setIsFavourite] = React.useState(
-    product?.favourite || false,
+  useEffect(() => {
+    let isMounted = true;
+
+    if (session?.user) {
+      fetchCart();
+      fetchUserData();
+    }
+
+    const fetchProducts = async () => {
+      setIsLoading(true);
+      setErrorStatus(null);
+
+      try {
+        const response = await fetch(`/api/products/${productId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error || "Product not found");
+        }
+
+        if (isMounted) {
+          setProduct(data);
+        }
+      } catch (error) {
+        console.error("Error fetching Products:", error);
+        if (isMounted) {
+          setErrorStatus(
+            error instanceof Error ? error.message : "Failed to load product",
+          );
+          setProduct(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [productId, fetchCart, fetchUserData]);
+
+  //pull the array of cart items from the zustand store
+  const { cartItems, updateQuantity, addToCart, toggleFavorite } =
+    useCartStore();
+
+  //check if card product id is in the cart items array
+  const isInCart = cartItems.some((item) => item.productId === productId);
+
+  //check if card product id is in the favorite items array
+  const isFavorite = useCartStore((state) =>
+    state.favoriteItems.includes(productId),
   );
-  const [isAddedToCart, setIsAddedToCart] = React.useState(
-    product?.addtocart || false,
-  );
 
-  // High-End Graceful Exception Boundary Handling
+  const currentQuantity =
+    cartItems.find((item) => item.productId === productId)?.quantity || 0;
+
+  if (isLoading) {
+    return (
+      <main className="min-h-[70vh] bg-white flex flex-col items-center justify-center px-6">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-200 border-t-black" />
+        <p className="mt-4 text-sm font-semibold uppercase tracking-[0.25em] text-zinc-500">
+          Loading product...
+        </p>
+      </main>
+    );
+  }
+
   if (!product) {
     return (
       <main className="min-h-[70vh] bg-white flex flex-col items-center justify-center px-6">
@@ -49,6 +115,9 @@ export default function ProductDetailsPage({ params }: PageProps) {
         <h1 className="text-xl font-black text-black uppercase tracking-tight mb-6">
           Device Matrix Frame Not Located
         </h1>
+        {errorStatus ? (
+          <p className="mb-4 text-sm text-zinc-500">{errorStatus}</p>
+        ) : null}
         <Link href="/products">
           <Button className="bg-black hover:bg-red-600 text-white text-xs tracking-widest uppercase rounded-none px-6 py-5">
             <FiArrowLeft className="mr-2 h-4 w-4" /> Return to Catalog
@@ -57,11 +126,6 @@ export default function ProductDetailsPage({ params }: PageProps) {
       </main>
     );
   }
-
-  // Pure Numerical State Mutations
-  const incrementQuantity = () => setQuantity((prev) => prev + 1);
-  const decrementQuantity = () =>
-    setQuantity((prev) => (prev > 1 ? prev - 1 : 1));
 
   return (
     <main className="bg-white min-h-screen pt-8 pb-24">
@@ -84,12 +148,12 @@ export default function ProductDetailsPage({ params }: PageProps) {
             alt={product.title}
             fill
             priority
-            sizes="(max-w-7xl) 60vw, 100vw"
+            sizes="(max-width: 1024px) 100vw, (max-width: 1280px) 60vw, 55vw"
             className="object-contain p-6 transform transition-transform duration-700 group-hover:scale-105"
           />
           {/* Subtle floating branding metadata index anchor */}
           <span className="absolute bottom-4 left-4 text-[9px] font-mono tracking-widest text-zinc-400">
-            [ ID-{product.id} // BARRISON.SYS ]
+            [ ID- {product.id}// BARRISON.SYS ]
           </span>
         </div>
 
@@ -117,6 +181,25 @@ export default function ProductDetailsPage({ params }: PageProps) {
               <span className="text-xs text-zinc-400 font-light">
                 (Based on 142 Verified Custom Specifications)
               </span>
+              {/* Top Meta Header: Favourite Action Icon Button */}
+              <div className="ml-auto">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Shield child triggers from global navigation
+                    toggleFavorite(product._id.toString());
+                  }}
+                  className="p-2 bg-white/80 backdrop-blur-md rounded-full shadow-sm hover:bg-zinc-50 border border-zinc-100 transition-colors"
+                  aria-label="Toggle Favourite"
+                >
+                  <FiHeart
+                    className={`h-4 w-4 transition-colors ${
+                      isFavorite
+                        ? "fill-red-600 text-red-600"
+                        : "text-zinc-400 group-hover:text-black"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
 
             {/* Financial Anchor Matrix */}
@@ -125,7 +208,7 @@ export default function ProductDetailsPage({ params }: PageProps) {
                 Value Configuration
               </span>
               <span className="text-3xl font-black tracking-tight text-black">
-                NGN {(product.price * quantity).toLocaleString()}
+                NGN {product.price}
               </span>
             </div>
 
@@ -135,9 +218,9 @@ export default function ProductDetailsPage({ params }: PageProps) {
                 Engineering Blueprint
               </span>
               <p className="text-zinc-600 text-sm font-light leading-relaxed">
-                {product.description} Built strictly to handle rigorous
-                production cycles, implementing optimized thermal dispersion
-                metrics and an ergonomic outer composite architecture.
+                dec Built strictly to handle rigorous production cycles,
+                implementing optimized thermal dispersion metrics and an
+                ergonomic outer composite architecture.
               </p>
             </div>
 
@@ -146,58 +229,56 @@ export default function ProductDetailsPage({ params }: PageProps) {
               <span className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase block mb-3">
                 Select Unit Count
               </span>
-              <div className="inline-flex items-center border border-zinc-200 bg-white">
+
+              {isInCart ? (
+                <div className="inline-flex items-center border border-zinc-200 bg-white">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+
+                      updateQuantity(
+                        product._id.toString(),
+                        currentQuantity - 1,
+                      );
+                    }}
+                    className="px-4 py-3 text-zinc-500 hover:text-black hover:bg-zinc-50 transition-colors"
+                    aria-label="Reduce quantity"
+                  >
+                    <FiMinus className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="w-12 text-center text-xs font-mono font-bold text-black">
+                    {currentQuantity}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateQuantity(
+                        product._id.toString(),
+                        currentQuantity + 1,
+                      );
+                    }}
+                    className="px-4 py-3 text-zinc-500 hover:text-black hover:bg-zinc-50 transition-colors"
+                    aria-label="Increase quantity"
+                  >
+                    <FiPlus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
                 <button
-                  onClick={decrementQuantity}
-                  className="px-4 py-3 text-zinc-500 hover:text-black hover:bg-zinc-50 transition-colors"
-                  aria-label="Reduce quantity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addToCart(product._id.toString());
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white font-bold text-xs tracking-widest uppercase transition-all duration-300 hover:bg-red-700"
                 >
-                  <FiMinus className="h-3.5 w-3.5" />
+                  <FiShoppingCart className="mr-2 h-4 w-4" />
+                  Add to Cart
                 </button>
-                <span className="w-12 text-center text-xs font-mono font-bold text-black">
-                  {quantity}
-                </span>
-                <button
-                  onClick={incrementQuantity}
-                  className="px-4 py-3 text-zinc-500 hover:text-black hover:bg-zinc-50 transition-colors"
-                  aria-label="Increase quantity"
-                >
-                  <FiPlus className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              )}
             </div>
           </div>
 
           {/* Action Interface Operational Array */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-8">
-            {/* Primary Core CTA: Cart Action Pipeline Button */}
-            <Button
-              onClick={() => setIsAddedToCart((prev) => !prev)}
-              className={`grow rounded-none py-6 text-xs font-black tracking-widest uppercase transition-all duration-300 ${
-                isAddedToCart
-                  ? "bg-zinc-100 hover:bg-zinc-200 text-zinc-900"
-                  : "bg-black hover:bg-red-600 text-white"
-              }`}
-            >
-              <FiShoppingCart className="mr-2 h-4 w-4" />
-              {isAddedToCart ? "Added to System" : "Deploy to Cart"}
-            </Button>
-
-            {/* Supplementary Feature: Favourite Watchlist Sync Button */}
-            <button
-              onClick={() => setIsFavourite((prev) => !prev)}
-              className={`px-5 py-4 border transition-colors flex items-center justify-center rounded-none ${
-                isFavourite
-                  ? "border-red-600 text-red-600 bg-red-50/20"
-                  : "border-zinc-200 text-zinc-400 hover:text-black hover:border-black"
-              }`}
-              aria-label="Add to system core watchlist"
-            >
-              <FiHeart
-                className={`h-5 w-5 ${isFavourite ? "fill-red-600" : ""}`}
-              />
-            </button>
-          </div>
 
           {/* Luxury Fulfillment Trust Metrics Row */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-zinc-100 pt-6">

@@ -40,6 +40,7 @@ export const ProductCategoryBanner: React.FC<CategoryBannerProps> = ({
               src={heroImage}
               alt={headline}
               fill
+              sizes="(max-width: 1024px) 100vw, (max-width: 1280px) 45vw, 35vw"
               className="object-cover brightness-50 hover:scale-105 transition-transform duration-700"
             />
             <div className="relative z-10 text-white">
@@ -75,6 +76,7 @@ export const ProductCategoryBanner: React.FC<CategoryBannerProps> = ({
                     src={item.image}
                     alt={item.title}
                     fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                     className="object-contain p-4 group-hover:scale-105 transition-transform duration-500"
                   />
                 </div>

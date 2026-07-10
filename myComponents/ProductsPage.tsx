@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { FiSearch, FiChevronDown, FiSliders } from "react-icons/fi";
-import { DUMMY_PRODUCTS, Product } from "@/lib/products"; // Correct directory reference
 import { ProductBanner } from "./ProductBanner"; // Path tracking previous component
 import { ProductCard } from "./ProductCard";
+import { IProduct } from "@/models/Products";
 
 // Complete valid taxonomy arrays mapped explicitly from instructions
 const CATEGORIES = [
@@ -18,7 +18,8 @@ const CATEGORIES = [
 type CategoryFilter = (typeof CATEGORIES)[number];
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(DUMMY_PRODUCTS);
+  //create a useffect the fetch the products from the database and set the state
+  const [dbProducts, setDbProducts] = useState<IProduct[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryFilter>("all");
@@ -26,7 +27,7 @@ export default function ProductsPage() {
 
   // Core Data Filtering Architecture Matrix
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
+    return dbProducts.filter((product) => {
       const matchesSearch =
         product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -34,24 +35,26 @@ export default function ProductsPage() {
         selectedCategory === "all" || product.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [products, searchQuery, selectedCategory]);
+  }, [dbProducts, searchQuery, selectedCategory]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch("/api/products");
+        const products = await response.json();
+        setDbProducts(products);
+      } catch (error) {
+        console.error("Error fetching Products:", error);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   // Demo Dynamic Component Action Handles
-  const handleToggleFavourite = (id: number) => {
-    setProducts((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, favourite: !item.favourite } : item,
-      ),
-    );
-  };
+  const handleToggleFavourite = (id: number) => {};
 
-  const handleAddToCart = (id: number) => {
-    setProducts((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, addtocart: !item.addtocart } : item,
-      ),
-    );
-  };
+  const handleAddToCart = (id: number) => {};
 
   return (
     <main className="bg-white min-h-screen pb-24">
@@ -126,8 +129,8 @@ export default function ProductsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredProducts.map((product) => (
               <ProductCard
-                key={product.id}
-                id={product.id}
+                key={product._id.toString()}
+                _id={product._id.toString()}
                 product={product}
                 onToggleFavourite={handleToggleFavourite}
                 onAddToCart={handleAddToCart}

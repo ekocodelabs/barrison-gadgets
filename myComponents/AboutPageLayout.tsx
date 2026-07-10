@@ -39,7 +39,7 @@ export default function AboutPageLayout() {
                 alt="Barrison Labs Clean Minimal Engineering Workspace Array"
                 fill
                 priority
-                sizes="(max-w-7xl) 35vw, 50vw"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 35vw"
                 className="object-cover brightness-[0.85] transition-transform duration-700 ease-out group-hover:scale-105"
               />
               <span className="absolute bottom-4 left-4 text-[9px] font-mono tracking-widest text-white z-10 bg-black/40 backdrop-blur-md px-2 py-1">
@@ -53,7 +53,7 @@ export default function AboutPageLayout() {
                 src="/images/banner2.jpg" // Located in public/about-manifesto-2.jpg
                 alt="Precision Architectural Hardware Components Detail Close-up"
                 fill
-                sizes="(max-w-7xl) 35vw, 50vw"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 35vw"
                 className="object-cover brightness-[0.85] transition-transform duration-700 ease-out group-hover:scale-105"
               />
               <span className="absolute bottom-4 left-4 text-[9px] font-mono tracking-widest text-white z-10 bg-black/40 backdrop-blur-md px-2 py-1">

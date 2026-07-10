@@ -6,7 +6,7 @@ import React from "react";
 export default function CartPage() {
   return (
     <>
-      <Navbar isLoggedIn={true} cartCount={5} favIconCount={9} />
+      <Navbar />
       <CartPageLayout />
       <Footer />
     </>
