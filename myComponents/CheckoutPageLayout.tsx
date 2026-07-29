@@ -64,21 +64,39 @@ export default function CheckoutPageLayout() {
     shippingAddress.postalCode.trim() !== "";
 
   // Structural Processing Operation Handlers
-  const handleSubmit = (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Complete structured layout data block ready to route directly to your API endpoint
+    if (!session?.user?.email) {
+      console.error("Checkout failed: user is not authenticated.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const orderItems = cartProducts.map((product) => {
+      const productId = product._id?.toString() ?? product.id?.toString() ?? "";
+      const quantity = Number(quantities[productId] || "1");
+      return {
+        productId,
+        title: product.title,
+        quantity,
+        price: product.price,
+      };
+    });
+
     const payload = {
-      phone,
+      customerEmail: session.user.email,
+      phoneNumber: phone,
       shippingAddress,
       paymentMethod,
+      totalPrice: grandTotal,
+      orderItems,
     };
 
-    //check payment method
-    if (payload.paymentMethod === "delivery") {
+    if (paymentMethod == "delivery") {
       //call api endpoint to submit the order
-      fetch("/api/orders", {
+      fetch("/api/order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -102,10 +120,48 @@ export default function CheckoutPageLayout() {
       console.log("Transmitting order transaction package payload...", payload);
       // Simulate pipeline connection latency
       setTimeout(() => setIsSubmitting(false), 2000);
-    } else {
-      //call paystack api, and then create order in paystack webhook
     }
-  };
+
+    if (paymentMethod == "online") {
+      //call paystack endpoint
+      fetch("/api/pay/initialize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          const authorizationUrl =
+            data?.paystack?.data?.authorization_url ||
+            data?.paystack?.authorization_url ||
+            data?.data?.authorization_url;
+
+          if (authorizationUrl) {
+            window.location.href = authorizationUrl;
+            return;
+          }
+
+          if (data.success) {
+            setIsSuccess(true);
+            clearCart();
+          } else {
+            console.error("Paystack initialization failed:", data);
+          }
+        })
+        .catch((error) => {
+          console.error("Error submitting order:", error);
+        })
+        .finally(() => {
+          setIsSubmitting(false);
+        });
+
+      console.log("Transmitting order transaction package payload...", payload);
+      // Simulate pipeline connection latency
+      setTimeout(() => setIsSubmitting(false), 2000);
+    }
+  }
 
   const quantities = React.useMemo(
     () =>

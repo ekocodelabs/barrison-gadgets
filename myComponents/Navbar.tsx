@@ -6,7 +6,6 @@ import { FiShoppingCart, FiLogOut, FiUser, FiMenu, FiX } from "react-icons/fi";
 import { FaHeart } from "react-icons/fa";
 import { IoPersonCircle } from "react-icons/io5";
 import { Button } from "@/components/ui/button";
-import { DUMMY_PRODUCTS } from "@/lib/products";
 import { useSession, signOut } from "next-auth/react";
 import { useCartStore } from "@/store/useCartStore";
 
@@ -23,7 +22,7 @@ type LeanUser = {
 };
 
 export function Navbar() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [user, setUser] = useState<LeanUser | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -41,7 +40,7 @@ export function Navbar() {
 
   const onLogout = () => {
     setIsMenuOpen(false);
-    signOut({ callbackUrl: "/login" });
+    signOut({ callbackUrl: "/" });
   };
 
   const fetchCart = useCartStore((state) => state.fetchCartItems);
@@ -53,14 +52,14 @@ export function Navbar() {
       setShowMobileMenuButton(window.innerWidth < 768);
     };
 
-    if (session?.user?.email) {
+    if (status === "authenticated" && session?.user?.email) {
       fetch("/api/users")
         .then((res) => res.json())
         .then((data) => setUser(data))
         .catch((err) => console.error(err));
     }
 
-    if (session?.user) {
+    if (status === "authenticated" && session?.user) {
       fetchCart();
       fetchUserData();
     }
@@ -68,9 +67,7 @@ export function Navbar() {
     updateMenuButton();
     window.addEventListener("resize", updateMenuButton);
     return () => window.removeEventListener("resize", updateMenuButton);
-
-    //fetch cart
-  }, [session, fetchCart, fetchUserData]);
+  }, [session, status, fetchCart, fetchUserData]);
 
   const cartCount = cartItems.length;
   const faviconcount = favoriteItems.length;
@@ -80,7 +77,7 @@ export function Navbar() {
       <div className="relative mx-auto flex h-20 max-w-7xl items-center justify-between px-6 sm:px-8">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-xl font-black tracking-widest text-black uppercase">
-            Barrison<span className="text-red-600">.</span>
+            B.Gadgets<span className="text-red-600">.</span>
           </span>
         </Link>
 

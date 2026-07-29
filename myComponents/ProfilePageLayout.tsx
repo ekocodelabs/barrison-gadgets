@@ -26,77 +26,90 @@ type LeanUser = {
   createdAt: Date;
 };
 
-// High-End Seed Arrays for Historical Orders Ledger Verification
-const DUMMY_ORDERS: OrderData[] = [
-  {
-    customerEmail: "alexander@barrison.com",
-    shippingAddress: {
-      street: "12 Architectural Ave",
-      city: "Ikoyi",
-      state: "Lagos",
-      postalCode: "101233",
-    },
-    orderItems: [
-      {
-        productId: 101,
-        title: "Barrison Zenith Book Pro",
-        quantity: 1,
-        price: 2499000,
-      },
-      {
-        productId: 301,
-        title: "StudioPro Wireless ANC",
-        quantity: 2,
-        price: 349000,
-      },
-    ],
-    paystackPaymentDetails: {
-      totalPrice: 3197000,
-      paystackReference: "BSTK-948201948-X",
-      isPaid: true,
-      paidAt: new Date("2026-06-15"),
-    },
-    status: "Delivered",
-    createdAt: new Date("2026-06-15"),
-  },
-  {
-    customerEmail: "alexander@barrison.com",
-    shippingAddress: {
-      street: "12 Architectural Ave",
-      city: "Ikoyi",
-      state: "Lagos",
-      postalCode: "101233",
-    },
-    orderItems: [
-      {
-        productId: 201,
-        title: "Stratus Ultra 5G Titanium",
-        quantity: 1,
-        price: 1199000,
-      },
-    ],
-    paystackPaymentDetails: {
-      totalPrice: 1199000,
-      paystackReference: "BSTK-003928114-A",
-      isPaid: true,
-      paidAt: new Date("2026-06-25"),
-    },
-    status: "Processing",
-    createdAt: new Date("2026-06-25"),
-  },
-];
-
 export default function ProfilePageLayout() {
   const { data: session } = useSession();
   const [user, setUser] = useState<LeanUser | null>(null);
+  const [orders, setOrders] = useState<OrderData[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (session?.user?.email) {
-      fetch("/api/users")
-        .then((res) => res.json())
-        .then((data) => setUser(data))
-        .catch((err) => console.error(err));
-    }
+    let isMounted = true;
+
+    const loadProfileData = async () => {
+      if (!session?.user?.email) {
+        setOrders([]);
+        setIsLoadingOrders(false);
+        setOrdersError(null);
+        return;
+      }
+
+      try {
+        const userResponse = await fetch("/api/users");
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          if (isMounted) {
+            setUser(userData);
+          }
+        }
+
+        const ordersResponse = await fetch("/api/order");
+        if (!ordersResponse.ok) {
+          throw new Error("Failed to load orders");
+        }
+
+        const ordersData = await ordersResponse.json();
+        const normalizedOrders = (ordersData.orders || []).map(
+          (order: any) => ({
+            ...order,
+            customerEmail: order.customerEmail || session?.user?.email || "",
+            shippingAddress: order.shippingAddress || {
+              street: "",
+              city: "",
+              state: "",
+              postalCode: "",
+            },
+            orderItems: Array.isArray(order.orderItems) ? order.orderItems : [],
+            paystackPaymentDetails: {
+              totalPrice: Number(
+                order.paystackPaymentDetails?.totalPrice ??
+                  order.totalPrice ??
+                  0,
+              ),
+              paystackReference:
+                order.paystackPaymentDetails?.paystackReference ?? "",
+              isPaid: Boolean(order.paystackPaymentDetails?.isPaid ?? false),
+              paidAt: order.paystackPaymentDetails?.paidAt
+                ? new Date(order.paystackPaymentDetails.paidAt)
+                : undefined,
+            },
+            status: order.status || "Pending",
+            createdAt: order.createdAt ? new Date(order.createdAt) : new Date(),
+          }),
+        );
+
+        if (isMounted) {
+          setOrders(normalizedOrders);
+          setOrdersError(null);
+        }
+      } catch (error) {
+        console.error("Error loading profile data:", error);
+        if (isMounted) {
+          setOrders([]);
+          setOrdersError("Unable to load your order history right now.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingOrders(false);
+        }
+      }
+    };
+
+    loadProfileData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [session]);
 
   // Account Information Profile Target variables placeholders
@@ -202,15 +215,35 @@ export default function ProfilePageLayout() {
                 </h2>
               </div>
               <span className="text-[10px] font-mono text-zinc-400 tracking-wider">
-                [{DUMMY_ORDERS.length} Entries Logged]
+                [{orders.length} Entries Logged]
               </span>
             </div>
 
             {/* Dynamic Rendering Mapping Loop Matrix Block */}
-            {DUMMY_ORDERS.length > 0 ? (
+            {isLoadingOrders ? (
+              <div className="w-full py-24 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-center p-6">
+                <FiSliders className="text-zinc-300 h-8 w-8 mb-3" />
+                <span className="text-[10px] font-black tracking-[0.3em] text-red-500 uppercase mb-1">
+                  Loading Orders
+                </span>
+                <p className="text-zinc-400 text-xs font-light uppercase tracking-wide max-w-xs">
+                  Fetching your recent transactions from the server.
+                </p>
+              </div>
+            ) : ordersError ? (
+              <div className="w-full py-24 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-center p-6">
+                <FiSliders className="text-zinc-300 h-8 w-8 mb-3" />
+                <span className="text-[10px] font-black tracking-[0.3em] text-red-500 uppercase mb-1">
+                  Order Feed Unavailable
+                </span>
+                <p className="text-zinc-400 text-xs font-light uppercase tracking-wide max-w-xs">
+                  {ordersError}
+                </p>
+              </div>
+            ) : orders.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {DUMMY_ORDERS.map((order, idx) => (
-                  <OrderCard key={idx} order={order} />
+                {orders.map((order, idx) => (
+                  <OrderCard key={order._id || idx} order={order} />
                 ))}
               </div>
             ) : (

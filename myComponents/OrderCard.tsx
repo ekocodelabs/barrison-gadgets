@@ -11,7 +11,7 @@ import {
 
 // Sync parameters directly with the Mongoose model schema contract definitions
 export interface OrderItem {
-  productId: number;
+  productId: string;
   title: string;
   quantity: number;
   price: number;

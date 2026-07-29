@@ -5,7 +5,7 @@ import { Navbar } from "@/myComponents/Navbar";
 import { PowerbankBanner } from "@/myComponents/PowerBankBanner";
 import { SpeakerBanner } from "@/myComponents/SpeakerBanner";
 
-export default function Home() {
+export default async function Home() {
   return (
     <>
       <Navbar />

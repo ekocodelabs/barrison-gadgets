@@ -21,143 +21,134 @@ const getAuthenticatedUserContext = async () => {
   };
 };
 
-// --- 1. SUBMIT / RECORD NEW ORDER (POST) ---
+/**
+ * UTILITY STRUCT: Stub to map the user back to an internal account profile node.
+ * Replace with your dynamic session extraction tool (e.g., const session = await auth()).
+ */
+const mockGetActiveUserObjectId = () => "65f8c3e41b2c3d4e5f6a7b8c";
+
 export async function POST(request: Request) {
   try {
+    // 1. Establish absolute connection to the database
     await connectToDatabase();
-    const userContext = await getAuthenticatedUserContext();
 
+    // 2. Safely parse incoming payload inputs from the execution thread
     const body = await request.json();
-    const { shippingAddress, orderItems, paymentMethod, paystackReference } =
-      body;
+    const {
+      customerEmail,
+      phoneNumber,
+      shippingAddress,
+      totalPrice,
+      paymentMethod,
+      orderItems,
+    } = body;
 
-    // Validate global structural contract parameters payload arguments
+    // 3. Robust validation layer: Ensure no required data streams are missing or corrupt
     if (
+      !customerEmail ||
+      !phoneNumber ||
       !shippingAddress ||
-      !orderItems ||
-      !Array.isArray(orderItems) ||
-      orderItems.length === 0 ||
-      !paymentMethod
+      !totalPrice ||
+      !paymentMethod ||
+      !orderItems
     ) {
       return NextResponse.json(
-        { error: "Missing required core dispatch logistics variables" },
+        {
+          error:
+            "Validation Fault // Missing required transactional logistics coordinates.",
+        },
         { status: 400 },
       );
     }
 
-    if (!["online", "delivery"].includes(paymentMethod)) {
+    if (!Array.isArray(orderItems) || orderItems.length === 0) {
       return NextResponse.json(
-        { error: "Invalid payment method classification parameter" },
+        {
+          error:
+            "Validation Fault // Order item array matrix cannot be null or empty.",
+        },
         { status: 400 },
       );
     }
 
-    let calculatedTotalPrice = 0;
-    const verifiedOrderItems = [];
-
-    // Loop through order items to verify prices and check stock levels
-    for (const item of orderItems) {
-      const liveProduct = await Product.findOne({ id: Number(item.productId) });
-
-      if (!liveProduct) {
-        return NextResponse.json(
-          {
-            error: `Hardware element ID-${item.productId} mismatch in system records`,
-          },
-          { status: 404 },
-        );
-      }
-
-      if (!liveProduct.inStock) {
-        return NextResponse.json(
-          {
-            error: `Operational stock depletion trace detected for: ${liveProduct.title}`,
-          },
-          { status: 400 },
-        );
-      }
-
-      // Add snapshotted valuation matrices to running order ledger calculations
-      const itemTotalPrice = liveProduct.price * Number(item.quantity);
-      calculatedTotalPrice += itemTotalPrice;
-
-      verifiedOrderItems.push({
-        productId: liveProduct.id,
-        title: liveProduct.title,
-        quantity: Number(item.quantity),
-        price: liveProduct.price, // Snapshotted baseline valuation prevents future modification mutations
-      });
+    // Double check to verify this handler isn't processing mixed runtime actions
+    if (paymentMethod !== "delivery") {
+      return NextResponse.json(
+        {
+          error:
+            "Protocol Error // This dedicated terminal endpoint strictly compiles Cash on Delivery payloads.",
+        },
+        { status: 422 },
+      );
     }
 
-    // Build the structural data dictionary configuration for database entry execution
-    const orderData: any = {
-      customerEmail: userContext.email,
-      shippingAddress,
-      orderItems: verifiedOrderItems,
-      paymentMethod,
-      totalPrice: calculatedTotalPrice,
-      status: "Pending",
+    const userId = mockGetActiveUserObjectId();
+
+    // 4. Assemble the structural data profile to match your schema definition perfectly
+    const structuredOrderPayload = {
+      customerEmail: customerEmail.trim().toLowerCase(),
+      phoneNumber: phoneNumber.trim(),
+      shippingAddress: {
+        street: shippingAddress.street?.trim(),
+        city: shippingAddress.city?.trim(),
+        state: shippingAddress.state?.trim(),
+        postalCode: shippingAddress.postalCode?.trim(),
+      },
+      orderItems: orderItems.map((item: any) => ({
+        productId: String(item.productId),
+        title: item.title?.trim(),
+        quantity: Number(item.quantity),
+        price: Number(item.price), // Snaps unit baseline values directly into record memory
+      })),
+      paymentMethod: "delivery",
+      totalPrice: Number(totalPrice),
+      status: "Pending", // Initial pipeline operational milestone state
+
+      // Explicitly setting empty variables for delivery workflows ensures indices don't trip
+      paystackPaymentDetails: {
+        totalPrice: Number(totalPrice),
+        paystackReference: undefined,
+        isPaid: false,
+      },
     };
 
-    // Branch logic configuration based on explicit client side transactional protocol choice
-    if (paymentMethod === "online") {
-      if (!paystackReference) {
-        return NextResponse.json(
-          {
-            error:
-              "Paystack unique identifier reference sequence missing from payload loop",
-          },
-          { status: 400 },
-        );
-      }
+    // 5. Commit record to MongoDB database
+    const savedOrderInstance = await Order.create(structuredOrderPayload);
 
-      orderData.paystackPaymentDetails = {
-        paystackReference,
-        isPaid: true, // Assuming client transaction step was verified before this dispatch pipeline loop
-        paidAt: new Date(),
-      };
-    } else {
-      // Cash on delivery parameters setup bypasses Paystack verification loops cleanly
-      orderData.paystackPaymentDetails = {
-        paystackReference: undefined, // Clears partial indices triggers smoothly
-        isPaid: false,
-      };
-    }
+    // 6. Cleanup Automation: Wipe out active client cart products array allocations upon confirmation
 
-    // Generate database ledger model instance record tracking transaction entry execution
-    const newOrder = await Order.create(orderData);
+    await Cart.findOneAndDelete({ email: customerEmail });
 
-    // Operational Cleanup: Empty the user's shopping cart array upon successful order registration
-    await Cart.findOneAndDelete({ email: userContext.email });
-
+    // 7. Dispatch success execution state trace payload back to client interface
     return NextResponse.json(
       {
         success: true,
         message:
-          "Order transaction authorization verified and deployed to logistics tracking pipelines.",
-        orderId: newOrder._id,
-        reference:
-          newOrder.paystackPaymentDetails?.paystackReference ||
-          "COD-SYSTEM-NODE",
+          "Cash on delivery transaction authorized and safely deployed to logistics queue.",
+        orderId: savedOrderInstance._id,
+        trackingStatus: savedOrderInstance.status,
       },
       { status: 201 },
     );
   } catch (error: any) {
-    console.error("Order deployment processing error matrix exception:", error);
+    console.error(
+      "Critical error inside cash-on-delivery processing loop:",
+      error,
+    );
 
-    // Catch duplicate reference token collisions smoothly
-    if (error.code === 11000) {
+    // Safety net for runtime validation errors or schema shape mismatch exceptions
+    if (error.name === "ValidationError") {
       return NextResponse.json(
-        {
-          error:
-            "Duplicate Paystack validation handshake signature collision detected",
-        },
-        { status: 409 },
+        { error: "Schema Validation Error", details: error.message },
+        { status: 400 },
       );
     }
 
     return NextResponse.json(
-      { error: "Internal order processing system compilation failure" },
+      {
+        error:
+          "Internal Server Processing Error // Failed to commit database ledger transaction.",
+      },
       { status: 500 },
     );
   }
@@ -171,7 +162,7 @@ export async function GET() {
 
     // Query database for all orders assigned to the current user, sorting by newest first
     const historicalOrdersLedger = await Order.find({
-      user: userContext.email,
+      customerEmail: userContext.email,
     }).sort({ createdAt: -1 });
 
     return NextResponse.json(

@@ -3,6 +3,7 @@ import { Schema, model, models, Document, Types } from "mongoose";
 // Define the TypeScript interface for your Order document
 export interface IOrder extends Document {
   customerEmail: string;
+  phoneNumber: string;
   shippingAddress: {
     street: string;
     city: string;
@@ -10,7 +11,7 @@ export interface IOrder extends Document {
     postalCode: string;
   };
   orderItems: Array<{
-    productId: number; // Storing numeric product ID matching your catalog schema
+    productId: string; // Use string Mongo IDs to match cart item references
     title: string;
     quantity: number;
     price: number;
@@ -30,6 +31,7 @@ export interface IOrder extends Document {
 
 const orderSchema = new Schema({
   customerEmail: { type: String, required: true, trim: true },
+  phoneNumber: { type: String, required: true, trim: true },
 
   // Flattened structural tracking address object
   shippingAddress: {
@@ -42,7 +44,7 @@ const orderSchema = new Schema({
   // Snapshot array capture preventing data mutations if master catalog details change later
   orderItems: [
     {
-      productId: { type: Number, required: true },
+      productId: { type: String, required: true },
       title: { type: String, required: true },
       quantity: { type: Number, required: true, min: 1 },
       price: { type: Number, required: true }, // Snapshotted NGN unit price value
@@ -81,7 +83,10 @@ const orderSchema = new Schema({
 orderSchema.index({ user: 1 });
 orderSchema.index({ "paystackPaymentDetails.paystackReference": 1 });
 
-// Senior Dev Check: Ensures we don't re-compile the model on Hot Module Replacement (HMR)
+// Senior Dev Check: Clear stale model cache during development so schema updates take effect.
+if (process.env.NODE_ENV !== "production" && models.Order) {
+  delete models.Order;
+}
 const Order = models.Order || model<IOrder>("Order", orderSchema);
 
 export default Order;

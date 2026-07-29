@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import Cart from "@/models/Cart";
+import Order from "@/models/Order";
+import connectToDatabase from "@/config/database";
 
 export async function POST(request: Request) {
   try {
+    await connectToDatabase();
     // 1. Grab the raw body text and paystack signature header
     const rawBody = await request.text();
     const signature = request.headers.get("x-paystack-signature");
 
     if (!signature) {
       console.error(
-        "🚨 [Aurelian Webhook Vault] Rejected: Missing security signature header.",
+        "🚨 [ Webhook Vault] Rejected: Missing security signature header.",
       );
       return NextResponse.json(
         { message: "Missing signature" },
@@ -21,7 +25,7 @@ export async function POST(request: Request) {
     const secretKey = process.env.PAYSTACK_SECRET_KEY;
     if (!secretKey) {
       console.error(
-        "🚨 [Aurelian Webhook Vault] Runtime Configuration Error: PAYSTACK_SECRET_KEY is undefined.",
+        "🚨 [ Webhook Vault] Runtime Configuration Error: PAYSTACK_SECRET_KEY is undefined.",
       );
       return NextResponse.json(
         { message: "Server misconfiguration" },
@@ -38,7 +42,7 @@ export async function POST(request: Request) {
     // Timing-safe comparison can prevent structural timing attacks
     if (hash !== signature) {
       console.error(
-        "🚨 [Aurelian Webhook Vault] Threat Detected: Signature mismatch. Body hash does not match signature header.",
+        "🚨 [ Webhook Vault] Threat Detected: Signature mismatch. Body hash does not match signature header.",
       );
       return NextResponse.json(
         { message: "Invalid signature structural check failed" },
@@ -52,12 +56,22 @@ export async function POST(request: Request) {
     const eventData = body.data;
 
     console.log(
-      `\n============== 📥 AURELIAN INBOUND LEDGER: ${eventType.toUpperCase()} ==============`,
+      `\n============== 📥  INBOUND LEDGER: ${eventType.toUpperCase()} ==============`,
     );
 
     // 4. Handle structural routing based on events
     switch (eventType) {
       case "charge.success":
+        const updateOrder = await Order.findOneAndUpdate(
+          { "paystackPaymentDetails.paystackReference": eventData.reference },
+          { "paystackPaymentDetails.isPaid": true, status: "Processing" },
+          { new: true },
+        );
+
+        if (updateOrder) {
+          await Cart.findOneAndDelete({ userEmail: eventData.customer?.email });
+        }
+
         console.log("✅ [PAYMENT VERIFIED]");
         console.log(
           `   └─ Ref / ID:    ${eventData.reference} / ${eventData.id}`,
