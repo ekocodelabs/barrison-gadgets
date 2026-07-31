@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FiCpu, FiFileText, FiGrid, FiImage, FiPlus } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,40 +15,8 @@ import {
   AdminProduct,
 } from "@/myComponents/AdminProductCard";
 
-const INITIAL_ADMIN_PRODUCTS: AdminProduct[] = [
-  {
-    id: 101,
-    title: "Barrison Zenith Book Pro",
-    description:
-      "Ultra-slim aerospace-grade aluminum chassis powered by a 16-core neural processor.",
-    price: 2499000,
-    image: "/products/computing-zenith.png",
-    category: "computing",
-  },
-  {
-    id: 201,
-    title: "Stratus Ultra 5G",
-    description:
-      "Sleek titanium framing housing a 200MP cinematic sensor array system blueprint.",
-    price: 1199000,
-    image: "/products/phone-stratus.png",
-    category: "phones & tablets",
-  },
-  {
-    id: 301,
-    title: "StudioPro Wireless ANC",
-    description:
-      "Lossless acoustic dimension headphones featuring dynamic active noise cancellation algorithms.",
-    price: 349000,
-    image: "/products/audio-studiopro.png",
-    category: "electronics",
-  },
-];
-
 export default function AddProductPageLayout() {
-  const [products, setProducts] = useState<AdminProduct[]>(
-    INITIAL_ADMIN_PRODUCTS,
-  );
+  const [products, setProducts] = useState<AdminProduct[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -57,32 +25,127 @@ export default function AddProductPageLayout() {
   const [category, setCategory] = useState<AdminProduct["category"] | "">("");
   // State for upload status and errors
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handleCreateProduct = (e: React.FormEvent) => {
-    e.preventDefault();
+  const loadProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const response = await fetch("/api/products");
+      const data = await response.json();
 
-    if (!title || !description || !price || !image || !category) return;
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to load products");
+      }
 
-    const newProduct: AdminProduct = {
-      id: Date.now(),
-      title,
-      description,
-      price: Number(price),
-      image,
-      category: category as AdminProduct["category"],
-    };
+      const normalizedProducts = (
+        Array.isArray(data) ? data : data.products || []
+      ).map((product: any) => ({
+        id: product.id ?? product._id?.toString?.() ?? String(product._id),
+        title: product.title,
+        description: product.description,
+        price: Number(product.price),
+        image: product.image,
+        category: product.category,
+      }));
 
-    setProducts((prev) => [newProduct, ...prev]);
-    setTitle("");
-    setDescription("");
-    setPrice("");
-    setImage("");
-    setCategory("");
+      setProducts(normalizedProducts);
+      setError(null);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to load products",
+      );
+    } finally {
+      setLoadingProducts(false);
+    }
   };
 
-  const handleDeleteProduct = (id: number) => {
-    setProducts((prev) => prev.filter((item) => item.id !== id));
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!title || !description || !price || !imageUrl || !category) {
+      setError("Please upload an image and fill in all required fields.");
+      return;
+    }
+
+    try {
+      setError(null);
+      setSubmitting(true);
+      const response = await fetch("/api/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title,
+          description,
+          price: Number(price),
+          image: imageUrl,
+          category,
+          inStock: true,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to create product");
+      }
+
+      setTitle("");
+      setDescription("");
+      setPrice("");
+      setImage("");
+      setImageUrl("");
+      setCategory("");
+      await loadProducts();
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : "Failed to create product",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteProduct = async (id: number | string) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this design? This action cannot be undone.",
+    );
+    if (!confirmDelete) return;
+
+    try {
+      setError(null);
+      const response = await fetch(
+        `/api/products?id=${encodeURIComponent(String(id))}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to delete product");
+      }
+
+      await loadProducts();
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete product",
+      );
+    }
   };
 
   // Handle file selection and upload to Cloudinary
@@ -231,19 +294,27 @@ export default function AddProductPageLayout() {
                   type="file"
                   accept="image/*"
                   required
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  placeholder="e.g. /products/powerbank-1.png"
+                  onChange={handleFileChange}
                   className="w-full bg-transparent text-xs font-medium tracking-wider text-black placeholder-zinc-300 focus:outline-none"
                 />
               </div>
+              {uploading ? (
+                <p className="mt-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  Uploading image...
+                </p>
+              ) : null}
               <input
                 name="image"
                 value={imageUrl}
                 readOnly
                 placeholder="Image URL will appear here after upload"
-                className="bg-white border-muted/20"
+                className="mt-2 w-full border border-zinc-200 bg-white px-3 py-2 text-xs font-medium tracking-wider text-black placeholder-zinc-300 focus:outline-none"
               />
+              {error ? (
+                <p className="mt-2 text-xs font-medium uppercase tracking-wider text-red-600">
+                  {error}
+                </p>
+              ) : null}
             </div>
 
             <div>
@@ -296,10 +367,13 @@ export default function AddProductPageLayout() {
 
             <Button
               type="submit"
-              className="w-full rounded-none bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.25em] text-white hover:bg-zinc-800"
+              disabled={submitting || uploading}
+              className="w-full rounded-none bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.25em] text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
             >
-              <FiPlus className="mr-2 h-4 w-4" />
-              Add Product
+              <FiPlus
+                className={`mr-2 h-4 w-4 ${submitting ? "animate-spin" : ""}`}
+              />
+              {submitting ? "Creating Product..." : "Add Product"}
             </Button>
           </form>
         </div>
@@ -314,8 +388,8 @@ export default function AddProductPageLayout() {
                 </h2>
               </div>
               <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                {products.length} live products • {categoryCount} active
-                categories
+                {loadingProducts ? "Loading" : products.length} live products •{" "}
+                {categoryCount} active categories
               </p>
             </div>
             <div className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">
@@ -323,7 +397,13 @@ export default function AddProductPageLayout() {
             </div>
           </div>
 
-          {products.length > 0 ? (
+          {loadingProducts ? (
+            <div className="rounded-none border border-dashed border-zinc-300 bg-zinc-50 p-10 text-center">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                Loading products from the database...
+              </p>
+            </div>
+          ) : products.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
               {products.map((product) => (
                 <AdminProductCard

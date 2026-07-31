@@ -6,6 +6,16 @@ import User from "@/models/User"; // Adjust path to your User model
 import { scryptSync, randomBytes } from "crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { z } from "zod";
+
+const registerSchema = z
+  .object({
+    firstName: z.string().trim().min(2).max(50),
+    lastName: z.string().trim().min(2).max(50),
+    email: z.string().trim().email(),
+    password: z.string().min(8).max(128),
+  })
+  .strict();
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -50,17 +60,20 @@ export async function POST(request: Request) {
 
     await connectToDatabase();
 
-    // Parse the JSON body from the standard fetch request
     const body = await request.json();
-    const { firstName, lastName, email, password } = body;
+    const parsedBody = registerSchema.safeParse(body);
 
-    // Strict Senior Rule: Validate fields over the wire
-    if (!firstName || !lastName || !email || !password) {
+    if (!parsedBody.success) {
       return NextResponse.json(
-        { error: "All profile registration fields are mandatory." },
+        {
+          error: "Invalid registration payload.",
+          details: parsedBody.error.flatten(),
+        },
         { status: 400 },
       );
     }
+
+    const { firstName, lastName, email, password } = parsedBody.data;
 
     // 1. Check for existing user records
     const existingUser = await User.findOne({ email: email.toLowerCase() });

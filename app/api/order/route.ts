@@ -6,11 +6,52 @@ import Product from "@/models/Products";
 import { authOptions } from "@/config/authOptions";
 import { getServerSession } from "next-auth";
 import Cart from "@/models/Cart";
+import { z } from "zod";
+
+const createOrderSchema = z
+  .object({
+    customerEmail: z.string().trim().email(),
+    phoneNumber: z.string().trim().min(7).max(20),
+    shippingAddress: z
+      .object({
+        street: z.string().trim().min(2),
+        city: z.string().trim().min(2),
+        state: z.string().trim().min(2),
+        postalCode: z.string().trim().min(3).max(20),
+      })
+      .strict(),
+    totalPrice: z.number().nonnegative(),
+    paymentMethod: z.literal("delivery"),
+    orderItems: z
+      .array(
+        z.object({
+          productId: z.string().trim().min(1),
+          title: z.string().trim().min(1),
+          quantity: z.number().int().positive(),
+          price: z.number().nonnegative(),
+        }),
+      )
+      .min(1),
+  })
+  .strict();
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
 /**
  * UTILITY METHOD: Simulates retrieving the active logged-in user context.
  * Swap this with your actual authentication token framework (e.g., NextAuth / iron-session).
  */
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
+const orderRateLimit = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(5, "2 m"),
+});
+
 const getAuthenticatedUserContext = async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -29,11 +70,44 @@ const mockGetActiveUserObjectId = () => "65f8c3e41b2c3d4e5f6a7b8c";
 
 export async function POST(request: Request) {
   try {
+    // Resolve client IP from common headers (Request has no .ip property)
+    const forwarded = request.headers.get("x-forwarded-for");
+    const ip =
+      (forwarded && forwarded.split(",")[0].trim()) ||
+      request.headers.get("x-real-ip") ||
+      "127.0.0.1";
+
+    //check limit
+    const { success, limit, remaining, reset } = await orderRateLimit.limit(ip);
+
+    console.log(
+      `RATE-LIMIT IP: ${ip} |Success: ${success} | Remaining Requests: ${remaining}/${limit}`,
+    );
+
+    if (!success) {
+      console.log(`BLOCKED IP: ${ip} has exceeded rate limit`);
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please wait 2 minutes." },
+        { status: 429 },
+      );
+    }
+
     // 1. Establish absolute connection to the database
     await connectToDatabase();
 
-    // 2. Safely parse incoming payload inputs from the execution thread
     const body = await request.json();
+    const parsedBody = createOrderSchema.safeParse(body);
+
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        {
+          error: "Validation Fault // Invalid order payload.",
+          details: parsedBody.error.flatten(),
+        },
+        { status: 400 },
+      );
+    }
+
     const {
       customerEmail,
       phoneNumber,
@@ -41,46 +115,7 @@ export async function POST(request: Request) {
       totalPrice,
       paymentMethod,
       orderItems,
-    } = body;
-
-    // 3. Robust validation layer: Ensure no required data streams are missing or corrupt
-    if (
-      !customerEmail ||
-      !phoneNumber ||
-      !shippingAddress ||
-      !totalPrice ||
-      !paymentMethod ||
-      !orderItems
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Validation Fault // Missing required transactional logistics coordinates.",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (!Array.isArray(orderItems) || orderItems.length === 0) {
-      return NextResponse.json(
-        {
-          error:
-            "Validation Fault // Order item array matrix cannot be null or empty.",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Double check to verify this handler isn't processing mixed runtime actions
-    if (paymentMethod !== "delivery") {
-      return NextResponse.json(
-        {
-          error:
-            "Protocol Error // This dedicated terminal endpoint strictly compiles Cash on Delivery payloads.",
-        },
-        { status: 422 },
-      );
-    }
+    } = parsedBody.data;
 
     const userId = mockGetActiveUserObjectId();
 

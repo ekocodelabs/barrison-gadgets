@@ -5,9 +5,44 @@ import { authOptions } from "@/config/authOptions";
 import { getServerSession } from "next-auth";
 import Cart from "@/models/Cart";
 import Order from "@/models/Order";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
+const paymentRateLimit = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(5, "1 m"),
+});
 
 export async function POST(request: Request) {
   try {
+    // Resolve client IP from common headers (Request has no .ip property)
+    const forwarded = request.headers.get("x-forwarded-for");
+    const ip =
+      (forwarded && forwarded.split(",")[0].trim()) ||
+      request.headers.get("x-real-ip") ||
+      "127.0.0.1";
+
+    //check limit
+    const { success, limit, remaining, reset } =
+      await paymentRateLimit.limit(ip);
+
+    console.log(
+      `RATE-LIMIT IP: ${ip} |Success: ${success} | Remaining Requests: ${remaining}/${limit}`,
+    );
+
+    if (!success) {
+      console.log(`BLOCKED IP: ${ip} has exceeded rate limit`);
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please wait 1 minutes." },
+        { status: 429 },
+      );
+    }
+
     await connectToDatabase();
 
     const customReference = `PSP-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;

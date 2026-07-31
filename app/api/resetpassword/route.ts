@@ -6,6 +6,14 @@ import User from "@/models/User"; // Adjust path to your User model
 import { scryptSync, randomBytes } from "crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { z } from "zod";
+
+const resetPasswordSchema = z
+  .object({
+    email: z.string().trim().email(),
+    newPassword: z.string().min(8).max(128),
+  })
+  .strict();
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -14,7 +22,7 @@ const redis = new Redis({
 
 const passwordRateLimit = new Ratelimit({
   redis: redis,
-  limiter: Ratelimit.slidingWindow(3, "5 m"),
+  limiter: Ratelimit.slidingWindow(2, "15 m"),
 });
 
 // Helper to hash passwords without external dependencies
@@ -44,27 +52,27 @@ export async function POST(request: Request) {
     if (!success) {
       console.log(`BLOCKED IP: ${ip} has exceeded rate limit`);
       return NextResponse.json(
-        { error: "Too many password reset attempts. Please wait 5 minutes." },
+        { error: "Too many password reset attempts. Please wait 15 minutes." },
         { status: 429 },
       );
     }
 
     await connectToDatabase();
 
-    // Parse incoming JSON body payload
     const body = await request.json();
-    const { email, newPassword } = body;
+    const parsedBody = resetPasswordSchema.safeParse(body);
 
-    // 1. Structural Sanity Validation over the wire
-    if (!email || !newPassword || newPassword.length < 8) {
+    if (!parsedBody.success) {
       return NextResponse.json(
         {
-          error:
-            "Invalid payload. Passwords must be at least 8 characters long.",
+          error: "Invalid password reset payload.",
+          details: parsedBody.error.flatten(),
         },
         { status: 400 },
       );
     }
+
+    const { email, newPassword } = parsedBody.data;
 
     // 2. Locate the asset profile by normalized email address
     const existingUser = await User.findOne({ email: email.toLowerCase() });

@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FiHeart, FiShoppingCart } from "react-icons/fi";
 import { FaStar } from "react-icons/fa";
@@ -69,13 +68,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* High-Contrast Core Display Showcase Image */}
-      <div className="w-full h-64 relative mb-6 overflow-hidden bg-zinc-50/50">
-        <Image
+      <div className="mb-6 h-64 w-full overflow-hidden bg-zinc-50/50">
+        <img
           src={product.image}
           alt={product.title}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-contain p-6 transform transition-transform duration-700 ease-out group-hover:scale-105"
+          className="h-full w-full object-contain p-6 transition-transform duration-700 ease-out group-hover:scale-105"
         />
       </div>
 

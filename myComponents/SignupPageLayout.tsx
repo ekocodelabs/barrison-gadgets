@@ -54,7 +54,7 @@ export default function SignUpPageLayout() {
       }
 
       // Senior Practice: Route redirect execution occurs cleanly on the client layer
-      router.push("/");
+      router.push("/login");
       router.refresh();
     } catch (err: any) {
       setErrorMessage(err.message || "Network layer exception.");
@@ -148,7 +148,7 @@ export default function SignUpPageLayout() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="operator@barrison.com"
+                placeholder="operator@mail.com"
                 className="w-full bg-transparent text-xs tracking-wider font-medium uppercase text-white placeholder-zinc-700 focus:outline-none"
               />
             </div>
@@ -207,7 +207,7 @@ export default function SignUpPageLayout() {
               href="/login"
               className="text-red-500 font-bold hover:text-white transition-colors ml-1"
             >
-              Authenticate Instantly
+              Login
             </Link>
           </p>
         </div>

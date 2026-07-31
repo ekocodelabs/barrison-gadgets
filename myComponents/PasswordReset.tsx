@@ -107,7 +107,7 @@ export default function PasswordResetLayout() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="operator@barrison.com"
+                placeholder="operator@mail.com"
                 className="w-full bg-transparent text-xs tracking-wider font-medium uppercase text-white placeholder-zinc-700 focus:outline-none"
               />
             </div>
@@ -115,7 +115,7 @@ export default function PasswordResetLayout() {
           {/* Password Input Field with Interactive View/Hide Payload Trigger Button */}
           <div>
             <label className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase block mb-2">
-              Password
+              New Password
             </label>
             <div className="relative border-b border-zinc-800 focus-within:border-red-500 transition-colors py-2 flex items-center">
               <FiLock className="text-zinc-500 h-4 w-4 mr-3 shrink-0" />
@@ -163,8 +163,7 @@ export default function PasswordResetLayout() {
             href="/login"
             className="inline-flex items-center gap-2 text-[11px] font-bold tracking-widest text-zinc-500 hover:text-white uppercase transition-colors"
           >
-            <FiArrowLeft className="h-3.5 w-3.5" /> Back To Authentication
-            Terminal
+            <FiArrowLeft className="h-3.5 w-3.5" /> BACK TO LOGIN
           </Link>
         </div>
       </div>

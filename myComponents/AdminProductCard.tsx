@@ -1,12 +1,11 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import { FiTrash2 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 
 export interface AdminProduct {
-  id: number;
+  id: number | string;
   title: string;
   description: string;
   price: number;
@@ -21,7 +20,7 @@ export interface AdminProduct {
 
 interface AdminProductCardProps {
   product: AdminProduct;
-  onDelete: (id: number) => void;
+  onDelete: (id: number | string) => void;
 }
 
 export const AdminProductCard: React.FC<AdminProductCardProps> = ({
@@ -43,12 +42,10 @@ export const AdminProductCard: React.FC<AdminProductCardProps> = ({
 
       {/* Product Image Frame Grid */}
       <div className="w-full h-48 relative mb-4 overflow-hidden bg-zinc-50/50">
-        <Image
+        <img
           src={product.image}
           alt={product.title}
-          fill
-          sizes="(max-w-7xl) 25vw, 33vw"
-          className="object-contain p-4 transform transition-transform duration-700 ease-out group-hover:scale-105"
+          className="h-full w-full object-contain p-4 transition-transform duration-700 ease-out group-hover:scale-105"
         />
       </div>
 

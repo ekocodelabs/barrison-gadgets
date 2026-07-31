@@ -95,7 +95,7 @@ export default function LoginPageLayout() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="operator@barrison.com"
+                placeholder="operator@email.com"
                 className="w-full bg-transparent text-xs tracking-wider font-medium uppercase text-white placeholder-zinc-700 focus:outline-none"
               />
             </div>

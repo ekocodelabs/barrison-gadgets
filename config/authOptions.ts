@@ -6,6 +6,7 @@ import User from "@/models/User";
 import { scryptSync } from "crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { z } from "zod";
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -15,6 +16,11 @@ const redis = new Redis({
 const loginRateLimit = new Ratelimit({
   redis,
   limiter: Ratelimit.slidingWindow(5, "1 m"),
+});
+
+const credentialsSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(8).max(128),
 });
 
 function getClientIp(req: any) {
@@ -41,7 +47,26 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, req) {
-        if (!credentials?.email || !credentials?.password) return null;
+        // DIAGNOSTIC 1: View raw inbound variables
+        console.log("--- AUTH DIAGNOSTIC INITIALIZED ---");
+        console.log("Raw credentials package received:", {
+          email: credentials?.email,
+          hasPassword: !!credentials?.password,
+        });
+        const parsedCredentials = credentialsSchema.safeParse(credentials);
+
+        if (!parsedCredentials.success) {
+          // DIAGNOSTIC 2: Catch formatting failures
+          console.error(
+            "Zod Schema Parsing Failed! Issues list:",
+            parsedCredentials.error.format(),
+          );
+
+          return null;
+        }
+
+        const { email, password } = parsedCredentials.data;
+        const normalizedEmail = email.toLowerCase();
 
         const ip = getClientIp(req);
         const { success, limit, remaining, reset } =
@@ -57,15 +82,21 @@ export const authOptions: NextAuthOptions = {
 
         await connectToDatabase();
 
-        const user = await User.findOne({ email: credentials.email });
-        if (!user) return null;
+        const user = await User.findOne({ email: normalizedEmail });
+        if (!user) {
+          console.error(
+            `Database Lookup Failed: No user row records match email: ${normalizedEmail}`,
+          );
+
+          return null;
+        }
+
+        console.log(
+          "User record matched in MongoDB, verifying crypto hashes...",
+        );
 
         const [salt, hashedPassword] = user.password.split(":");
-        const hashToVerify = scryptSync(
-          credentials.password,
-          salt,
-          64,
-        ).toString("hex");
+        const hashToVerify = scryptSync(password, salt, 64).toString("hex");
 
         if (hashToVerify !== hashedPassword) {
           throw new Error("Invalid credentials.");

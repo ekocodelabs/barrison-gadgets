@@ -147,7 +147,7 @@ export default function ProfilePageLayout() {
               {/* Personal Descriptive Block Typography Matrices */}
               <div className="space-y-1 mb-8">
                 <span className="text-[9px] font-black tracking-[0.3em] text-red-600 uppercase block">
-                  Operator Verified Profile
+                  Verified Profile
                 </span>
                 <h1 className="text-2xl font-black uppercase tracking-tight text-zinc-900 leading-none">
                   {userProfile.firstName} {userProfile.lastName}
@@ -163,7 +163,7 @@ export default function ProfilePageLayout() {
                 <Link href="/cart" className="block w-full">
                   <Button className="w-full bg-black hover:bg-red-600 text-white font-black text-xs tracking-widest uppercase py-5 rounded-none transition-all duration-300 justify-between px-5">
                     <span className="flex items-center gap-2">
-                      <FiShoppingCart className="h-4 w-4" /> Open System Cart
+                      <FiShoppingCart className="h-4 w-4" /> Open Cart
                     </span>
                     <span className="text-[10px] bg-white/20 px-2 py-0.5 font-mono">
                       GO
@@ -195,8 +195,7 @@ export default function ProfilePageLayout() {
                 variant="ghost"
                 className="w-full text-zinc-500 hover:text-red-600 hover:bg-red-50/20 text-xs font-black tracking-widest uppercase py-5 rounded-none transition-all duration-300 justify-start px-3"
               >
-                <FiLogOut className="mr-3 h-4 w-4 text-red-600" /> Disconnect
-                User Node
+                <FiLogOut className="mr-3 h-4 w-4 text-red-600" /> LOGOUT
               </Button>
             </div>
           </div>
