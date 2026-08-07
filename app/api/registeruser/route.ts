@@ -7,6 +7,9 @@ import { scryptSync, randomBytes } from "crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { z } from "zod";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const registerSchema = z
   .object({
@@ -87,12 +90,56 @@ export async function POST(request: Request) {
     // 2. Secure authentication strings
     const securedPassword = hashPassword(password);
 
-    // 3. Construct premium investment asset profile ledger matrix structure
+    // 3. Create user
     const newUser = await User.create({
       firstName,
       lastName,
       email: email.toLowerCase(),
       password: securedPassword,
+    });
+
+    //send maill
+    await resend.emails.send({
+      from: "Barrison Gadgets <onboarding@resend.dev>", // Replace with your custom verified domain in production (e.g., concierge@barrison.com)
+      to: [email],
+      subject: "BARRISON // Identity Provisioning Authorized",
+      html: `
+        <div style="font-family: Arial, sans-serif; background-color: #ffffff; color: #000000; padding: 40px; border-top: 6px solid #e11d48; max-width: 600px; margin: 0 auto; border-left: 1px solid #f4f4f5; border-right: 1px solid #f4f4f5; border-bottom: 1px solid #f4f4f5;">
+          <h1 style="font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.05em; margin-bottom: 4px;">
+            BARRISON<span style="color: #e11d48;">.</span>
+          </h1>
+          <p style="font-size: 10px; font-weight: bold; letter-spacing: 0.3em; color: #a1a1aa; text-transform: uppercase; margin-top: 0; margin-bottom: 30px;">
+            System Security Node Authorized
+          </p>
+          
+          <h2 style="font-size: 18px; font-weight: 800; text-transform: uppercase; margin-bottom: 16px;">
+            Welcome, Operator ${firstName.toUpperCase()}
+          </h2>
+          
+          <p style="font-size: 14px; font-weight: 300; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
+            Your account credentials have been successfully compiled and recorded into the Barrison Gadgets master database cluster. Your network terminal is now fully operational.
+          </p>
+          
+          <div style="margin-bottom: 32px; padding: 20px; background-color: #f9fafb; border: 1px solid #f3f4f6;">
+            <p style="font-size: 11px; font-weight: bold; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 8px 0; color: #1f2937;">
+              Provisioned Vector Settings:
+            </p>
+            <p style="font-size: 12px; font-family: monospace; color: #4b5563; margin: 0;">
+              Node ID: [ Registered Mail: ${email} ]
+            </p>
+          </div>
+
+          <p style="font-size: 14px; font-weight: 300; line-height: 1.6; color: #4b5563; margin-bottom: 32px;">
+            Log into your dashboard matrix to manage active computing configurations, save favorite items to your watchlist, or execute premium hardware deployments.
+          </p>
+          
+          <div style="text-align: center; border-top: 1px solid #f4f4f5; pt-24; margin-top: 40px; padding-top: 20px;">
+            <p style="font-size: 10px; font-family: monospace; letter-spacing: 0.2em; color: #a1a1aa; text-transform: uppercase; margin: 0;">
+              [ DO NOT REPLY // SECURE AUTOMATION ROUTE KEY ]
+            </p>
+          </div>
+        </div>
+      `,
     });
 
     // Return success payload containing context (Never send the password string back)

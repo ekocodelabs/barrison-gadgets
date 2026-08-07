@@ -7,6 +7,9 @@ import Cart from "@/models/Cart";
 import Order from "@/models/Order";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
@@ -166,6 +169,78 @@ export async function POST(request: Request) {
     };
 
     const savedOrderInstance = await Order.create(structuredOrderPayload);
+
+    //send mail
+
+    await resend.emails.send({
+      from: "Barrison Gadgets <onboarding@resend.dev>", // Replace with your custom domain in production
+      to: [customerEmail],
+      subject: "BARRISON // Order Confirmed",
+      html: `
+    <div style="font-family: Arial, sans-serif; background-color: #ffffff; color: #000000; padding: 40px; border-top: 6px solid #e11d48; max-width: 600px; margin: 0 auto; border-left: 1px solid #f4f4f5; border-right: 1px solid #f4f4f5; border-bottom: 1px solid #f4f4f5;">
+      
+      {/* Brand Header */}
+      <h1 style="font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.05em; margin-bottom: 4px;">
+        BARRISON<span style="color: #e11d48;">.</span>
+      </h1>
+      <p style="font-size: 10px; font-weight: bold; letter-spacing: 0.3em; color: #a1a1aa; text-transform: uppercase; margin-top: 0; margin-bottom: 30px;">
+        Order Confirmation Notice
+      </p>
+      
+      <h2 style="font-size: 18px; font-weight: 800; text-transform: uppercase; margin-bottom: 16px;">
+        Thank you for your order!
+      </h2>
+      
+      <p style="font-size: 14px; font-weight: 300; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
+        We have received your order successfully. Our team is now prepping your premium gadgets for delivery.
+      </p>
+      
+      {/* Order Reference Information Box */}
+      <div style="margin-bottom: 32px; padding: 20px; background-color: #f9fafb; border: 1px solid #f3f4f6;">
+        <p style="font-size: 11px; font-weight: bold; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 8px 0; color: #1f2937;">
+          Order Overview:
+        </p>
+        <p style="font-size: 12px; font-family: monospace; color: #4b5563; margin: 0 0 4px 0;">
+          Payment Method: [ ${paymentMethod.toUpperCase()} ]
+        </p>
+        <p style="font-size: 12px; font-family: monospace; color: #4b5563; margin: 0 0 4px 0;">
+          Reference ID: [ ${paymentMethod === "online" ? paystackData.data?.reference : "CASH-ON-DELIVERY"} ]
+        </p>
+        <p style="font-size: 12px; font-family: monospace; color: #e11d48; margin: 0; font-weight: bold;">
+          Total Price: [ ₦${totalPrice.toLocaleString()} ]
+        </p>
+      </div>
+
+      {/* Logistics & Delivery Box */}
+      <div style="margin-bottom: 32px; padding: 20px; border: 1px solid #e4e4e7; background-color: #ffffff;">
+        <p style="font-size: 11px; font-weight: bold; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 8px 0; color: #1f2937;">
+          Shipping Address:
+        </p>
+        <p style="font-size: 13px; font-weight: 300; color: #4b5563; margin: 0; line-height: 1.4;">
+          ${shippingAddress.street},<br />
+          ${shippingAddress.city}, ${shippingAddress.state}<br />
+          ${shippingAddress.postalCode}
+        </p>
+      </div>
+
+      {/* Call to Action or Quick Note */}
+      <p style="font-size: 14px; font-weight: 300; line-height: 1.6; color: #4b5563; margin-bottom: 32px;">
+        ${
+          paymentMethod === "delivery"
+            ? "Please remember to have the exact cash amount ready when our delivery partner arrives at your address."
+            : "Your payment was processed securely. You can track your package progress on your account profile page."
+        }
+      </p>
+      
+      {/* Footer Tag */}
+      <div style="text-align: center; border-top: 1px solid #f4f4f5; margin-top: 40px; padding-top: 20px;">
+        <p style="font-size: 10px; font-family: monospace; letter-spacing: 0.2em; color: #a1a1aa; text-transform: uppercase; margin: 0;">
+          [ Thank you for shopping with Barrison Gadgets ]
+        </p>
+      </div>
+    </div>
+  `,
+    });
 
     return NextResponse.json({
       success: true,
