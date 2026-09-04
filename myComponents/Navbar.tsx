@@ -121,7 +121,7 @@ export function Navbar() {
                   <FiShoppingCart className="h-6 w-6" />
 
                   <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white ring-2 ring-white">
-                    {cartCount.toString()}
+                    {cartCount}
                   </span>
                 </Link>
 
@@ -224,13 +224,23 @@ export function Navbar() {
               onClick={() => setIsMenuOpen(false)}
             >
               Favorite
+              {faviconcount > 0 && (
+                <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                  {faviconcount}
+                </span>
+              )}
             </Link>
             <Link
               href="/cart"
               className="block rounded-md px-4 py-3 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
               onClick={() => setIsMenuOpen(false)}
             >
-              Cart
+              Cart{" "}
+              {cartCount > 0 && (
+                <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                  {cartCount}
+                </span>
+              )}
             </Link>
 
             {session ? (
