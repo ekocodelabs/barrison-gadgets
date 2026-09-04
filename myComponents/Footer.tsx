@@ -104,6 +104,17 @@ export const Footer: React.FC = () => {
             Terms of Service
           </Link>
         </div>
+        <p>
+          Developed by{" "}
+          <a
+            href="https://ekocodelabs.com"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-white transition-colors"
+          >
+            Ekocodelabs
+          </a>
+        </p>
       </div>
     </footer>
   );
