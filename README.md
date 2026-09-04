@@ -1,3 +1,27 @@
+Barrison Gadget
+
+Barrison Gadget is a full-featured, high-performance e-commerce platform for gadgets and electronics. Built with Next.js and TypeScript, the application leverages a modern, distributed architecture featuring state management, secure payment processing, caching, rate-limiting, and robust server-side validation.
+
+🚀 Features
+Secure Authentication: User sign-up and login powered by NextAuth.js with secure password hashing using crypto.
+Data Validation: Strict runtime type checking and authentication validation schemas enforced via Zod.
+Global State Management: Fast, lightweight, and reactive client-side store management using Zustand.
+Secure Checkout: Seamless payment collection integrated via the Paystack API.
+API Rate Limiting: Security infrastructure to prevent abuse and brute-force attacks powered by Redis.
+Transactional Emailing: Automated purchase confirmations and communications sent using Resend.
+Cloud Media Hosting: High-fidelity product gallery assets optimized and served through Cloudinary.
+
+🛠️ Tech Stack
+Framework: Next.js
+Language: TypeScript
+Database & ORM: MongoDB & Mongoose
+State Management: Zustand
+Authentication & Validation: NextAuth.js, Crypto, Zod
+Infrastructure & Security: Redis (Upstash/Local) for Rate Limiting
+Payment Gateway: Paystack
+Email & Media: Resend, Cloudinary
+Styling: Tailwind CSS
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
