@@ -101,6 +101,13 @@ export function Navbar() {
             Products
             <span className="absolute left-3 bottom-2 h-0.5 w-0 bg-red-600 transition-all group-hover:w-5" />
           </Link>
+          <Link
+            href="#contact"
+            className="group relative rounded-md px-3 py-2 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+          >
+            Contact
+            <span className="absolute left-3 bottom-2 h-0.5 w-0 bg-red-600 transition-all group-hover:w-5" />
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3">
