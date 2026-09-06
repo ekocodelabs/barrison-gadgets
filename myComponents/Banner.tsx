@@ -25,7 +25,7 @@ export const Banner: React.FC = () => {
           poster="/images/banner1.jpg" // Fallback structural anchor graphic
         >
           {/* Place your looping abstract technical video or device close-up directly inside your /public asset folder */}
-          <source src="/images/videobanner2.mp4" type="video/mp4" />
+          <source src="/images/videobanner3.mp4" type="video/mp4" />
           Your modern web engine does not support inline embedded video playback
           matrices.
         </video>
