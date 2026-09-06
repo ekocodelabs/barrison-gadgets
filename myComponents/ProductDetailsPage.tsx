@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   FiHeart,
   FiShoppingCart,
@@ -25,7 +26,9 @@ interface PageProps {
 
 export default function ProductDetailsPage({ params }: PageProps) {
   const productId = params.id;
-  const { data: session } = useSession();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === "authenticated";
   // Single product state block container
   const [product, setProduct] = useState<IProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -230,7 +233,14 @@ export default function ProductDetailsPage({ params }: PageProps) {
                 Select Unit Count
               </span>
 
-              {isInCart ? (
+              {!isAuthenticated ? (
+                <button
+                  onClick={() => router.push("/login")}
+                  className="px-4 py-2 bg-black text-white font-bold text-xs tracking-widest uppercase transition-all duration-300 hover:bg-red-700"
+                >
+                  Login to Add
+                </button>
+              ) : isInCart ? (
                 <div className="inline-flex items-center border border-zinc-200 bg-white">
                   <button
                     onClick={(e) => {

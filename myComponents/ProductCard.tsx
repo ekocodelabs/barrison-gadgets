@@ -23,6 +23,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onAddToCart,
 }) => {
   const router = useRouter();
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
 
   // Route directly to standard dynamic product item specification path
   const handleNavigation = () => {
@@ -111,7 +113,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {isInCart ? (
+            {!isAuthenticated ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push("/login");
+                }}
+                className="px-4 py-2 bg-black text-white font-bold text-xs tracking-widest uppercase transition-all duration-300 hover:bg-red-700"
+              >
+                Login to Add
+              </button>
+            ) : isInCart ? (
               /* If the product is already in the cart, show quantity controls */
               <div className="inline-flex items-center border border-zinc-200 bg-white">
                 <button

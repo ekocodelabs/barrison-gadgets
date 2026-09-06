@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { toast } from "sonner";
 
 export default function LoginPageLayout() {
   const [showPassword, setShowPassword] = useState(false);
@@ -39,7 +40,9 @@ export default function LoginPageLayout() {
 
     if (result?.error) {
       setError("Login failed: " + result.error);
-      alert("Invalid credentials or unauthorized access.");
+      toast.error(
+        result.error || "Invalid credentials or unauthorized access.",
+      );
       setIsLoading(false);
     } else {
       // Success: Redirect to dashboard

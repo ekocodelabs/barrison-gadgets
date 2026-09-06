@@ -14,6 +14,7 @@ import {
 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react"; // Match your high-end look with an elegant spinner
+import { toast } from "sonner";
 
 export default function SignUpPageLayout() {
   const [showPassword, setShowPassword] = useState(false);
@@ -22,13 +23,11 @@ export default function SignUpPageLayout() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
-    setErrorMessage(null);
 
     const formData = new FormData(event.currentTarget);
 
@@ -54,10 +53,10 @@ export default function SignUpPageLayout() {
       }
 
       // Senior Practice: Route redirect execution occurs cleanly on the client layer
-      router.push("/login");
+      router.push("/welcome");
       router.refresh();
     } catch (err: any) {
-      setErrorMessage(err.message || "Network layer exception.");
+      toast.error(err.message || "Network layer exception.");
     } finally {
       setLoading(false);
     }
