@@ -5,7 +5,7 @@ import { FiSmartphone, FiMessageCircle, FiArrowRight } from "react-icons/fi";
 
 export const Banner: React.FC = () => {
   // Replace this placeholder link with your actual business WhatsApp phone routing number details
-  const whatsappNumber = "2348088449647"; // Format: Country Code + Phone Number (No spaces or '+' symbols)
+  const whatsappNumber = ""; // Format: Country Code + Phone Number (No spaces or '+' symbols)
   const preFilledMessage = encodeURIComponent(
     "Hello Barrison Gadgets, I am interested in exploring your premium hardware inventory and electronic accessories catalog. Please connect me to a product expert.",
   );
