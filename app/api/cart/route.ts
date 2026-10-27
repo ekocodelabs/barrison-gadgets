@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import connectToDatabase from "@/config/database";
-import User from "@/models/User";
-import Product from "@/models/Products";
 import Cart from "@/models/Cart";
+import "@/models/Products";
 import { authOptions } from "@/config/authOptions";
 import { getServerSession } from "next-auth";
 
@@ -10,23 +9,13 @@ import { getServerSession } from "next-auth";
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    const email = session?.user?.email?.trim().toLowerCase();
+    if (!email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     await connectToDatabase();
 
-    // Locate the user profile document matching the authenticated email
-    const user = (await User.findOne({
-      email: session?.user?.email,
-    }).lean()) as { email: string } | null;
-    if (!user) {
-      return NextResponse.json(
-        { error: "User profile trace not located" },
-        { status: 404 },
-      );
-    }
-
-    const cart = await Cart.findOne({ userEmail: user.email })
+    const cart = await Cart.findOne({ userEmail: email })
       .populate("items.productId")
       .lean();
 
@@ -44,16 +33,17 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    const email = session?.user?.email?.trim().toLowerCase();
+    if (!email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     await connectToDatabase();
     const { productId, quantity = 1 } = await request.json();
 
     //find users cart or create a new one if it doesn't exist
-    let cart = await Cart.findOne({ userEmail: session?.user?.email });
+    let cart = await Cart.findOne({ userEmail: email });
     if (!cart) {
-      cart = new Cart({ userEmail: session?.user?.email, items: [] });
+      cart = new Cart({ userEmail: email, items: [] });
     }
 
     //check if product already exists in cart
@@ -90,12 +80,12 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    const email = session?.user?.email?.trim().toLowerCase();
+    if (!email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     await connectToDatabase();
     const { productId, quantity } = await request.json();
-    const email = session?.user?.email;
 
     let cart = await Cart.findOne({ userEmail: email });
     if (!cart) {

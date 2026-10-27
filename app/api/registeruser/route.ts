@@ -4,12 +4,9 @@ import { NextResponse } from "next/server";
 import connectToDatabase from "@/config/database"; // Adjust path to your database connector
 import User from "@/models/User"; // Adjust path to your User model
 import { scryptSync, randomBytes } from "crypto";
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { checkRateLimit } from "@/config/rateLimit";
 import { z } from "zod";
 import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 const registerSchema = z
   .object({
@@ -20,15 +17,6 @@ const registerSchema = z
   })
   .strict();
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
-
-const registerRateLimit = new Ratelimit({
-  redis: redis,
-  limiter: Ratelimit.slidingWindow(3, "5 m"),
-});
 // Helper to hash passwords without external dependencies
 function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -46,15 +34,7 @@ export async function POST(request: Request) {
       "127.0.0.1";
 
     //check limit
-    const { success, limit, remaining, reset } =
-      await registerRateLimit.limit(ip);
-
-    console.log(
-      `RATE-LIMIT IP: ${ip} |Success: ${success} | Remaining Requests: ${remaining}/${limit}`,
-    );
-
-    if (!success) {
-      console.log(`BLOCKED IP: ${ip} has exceeded rate limit`);
+    if (!(await checkRateLimit(ip, 3, "5 m"))) {
       return NextResponse.json(
         { error: "Too many registration attempts. Please wait 5 minutes." },
         { status: 429 },
@@ -98,12 +78,15 @@ export async function POST(request: Request) {
       password: securedPassword,
     });
 
-    //send maill
-    await resend.emails.send({
-      from: "Barrison Gadgets <onboarding@resend.dev>", // Replace with your custom verified domain in production (e.g., concierge@barrison.com)
-      to: [email],
-      subject: "BARRISON // Identity Provisioning Authorized",
-      html: `
+    // Welcome email is a secondary action; it must not invalidate account creation.
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: "Barrison Gadgets <onboarding@resend.dev>", // Replace with your custom verified domain in production (e.g., concierge@barrison.com)
+          to: [email],
+          subject: "BARRISON // Identity Provisioning Authorized",
+          html: `
         <div style="font-family: Arial, sans-serif; background-color: #ffffff; color: #000000; padding: 40px; border-top: 6px solid #e11d48; max-width: 600px; margin: 0 auto; border-left: 1px solid #f4f4f5; border-right: 1px solid #f4f4f5; border-bottom: 1px solid #f4f4f5;">
           <h1 style="font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.05em; margin-bottom: 4px;">
             BARRISON<span style="color: #e11d48;">.</span>
@@ -140,7 +123,13 @@ export async function POST(request: Request) {
           </div>
         </div>
       `,
-    });
+        });
+      } catch (emailError) {
+        console.error("Welcome email could not be sent:", emailError);
+      }
+    } else {
+      console.warn("RESEND_API_KEY is not configured; skipping welcome email.");
+    }
 
     // Return success payload containing context (Never send the password string back)
     return NextResponse.json(
@@ -151,7 +140,7 @@ export async function POST(request: Request) {
       { status: 201 }, // 201 Created status code
     );
   } catch (error) {
-    console.error("Database Transaction Error:", error);
+    console.error("Registration failed:", error);
     return NextResponse.json(
       { error: "Internal server infrastructure processing exception." },
       { status: 500 },

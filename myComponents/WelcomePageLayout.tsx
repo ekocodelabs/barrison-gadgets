@@ -87,7 +87,7 @@ export default function WelcomePageLayout() {
                 Welcome! Your online shopping terminal is ready.
               </p>
               <Link
-                href="/login"
+                href="/"
                 className="group flex items-center justify-between bg-black hover:bg-red-600 text-white text-xs font-black tracking-widest uppercase px-6 py-5 rounded-none transition-all duration-300 w-full"
               >
                 Enter Storefront

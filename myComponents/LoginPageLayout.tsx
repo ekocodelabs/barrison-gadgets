@@ -32,22 +32,27 @@ export default function LoginPageLayout() {
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email");
     const password = formData.get("password");
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false, // Prevents automatic redirect so we can handle errors
-    });
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
-    if (result?.error) {
-      setError("Login failed: " + result.error);
-      toast.error(
-        result.error || "Invalid credentials or unauthorized access.",
-      );
+      if (result?.error) {
+        setError("Login failed: " + result.error);
+        toast.error(
+          result.error || "Invalid credentials or unauthorized access.",
+        );
+      } else {
+        router.push("/");
+        router.refresh();
+      }
+    } catch {
+      setError("Unable to reach the login service. Please try again.");
+      toast.error("Unable to reach the login service. Please try again.");
+    } finally {
       setIsLoading(false);
-    } else {
-      // Success: Redirect to dashboard
-      router.push("/");
-      router.refresh(); // Clears any cached layout state
     }
   };
 
@@ -94,7 +99,7 @@ export default function LoginPageLayout() {
               <FiMail className="text-zinc-500 h-4 w-4 mr-3 shrink-0" />
               <input
                 name="email"
-                type="type"
+                type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

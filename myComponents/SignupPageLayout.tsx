@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react"; // Match your high-end look with an elegant spinner
 import { toast } from "sonner";
+import { signIn } from "next-auth/react";
 
 export default function SignUpPageLayout() {
   const [showPassword, setShowPassword] = useState(false);
@@ -52,7 +53,25 @@ export default function SignUpPageLayout() {
         );
       }
 
-      // Senior Practice: Route redirect execution occurs cleanly on the client layer
+      try {
+        const signInResult = await signIn("credentials", {
+          email: String(payload.email),
+          password: String(payload.password),
+          redirect: false,
+        });
+
+        if (!signInResult || signInResult.error) {
+          throw new Error("Automatic sign-in was not completed.");
+        }
+      } catch {
+        toast.error(
+          "Your account was created, but automatic sign-in failed. Please log in.",
+        );
+        router.push("/login");
+        return;
+      }
+
+      toast.success("Your account is ready. You are now signed in.");
       router.push("/welcome");
       router.refresh();
     } catch (err: any) {

@@ -22,23 +22,28 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   //load cart item from db when user logs in
   fetchCartItems: async () => {
-    const response = await fetch("/api/cart");
-    if (response.ok) {
-      const data = await response.json();
-      const items = data.cart?.items || [];
+    try {
+      const response = await fetch("/api/cart");
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        console.error(
+          `Failed to fetch cart items (HTTP ${response.status}): ${data?.error || response.statusText}`,
+        );
+        return;
+      }
+
+      const items = data?.cart?.items || [];
       const normalized = items.map((it: any) => ({
         productId:
-          // populated product object
           it.productId?._id?.toString?.() ||
-          // raw ObjectId
           it.productId?.toString?.() ||
-          // fallback
           String(it.productId),
         quantity: it.quantity || 0,
       }));
       set({ cartItems: normalized });
-    } else {
-      console.error("Failed to fetch cart items");
+    } catch (error) {
+      console.error("Network error while fetching cart items:", error);
     }
   },
 
