@@ -59,17 +59,17 @@ export const Footer: React.FC = () => {
             Contact Us
           </span>
           <a
-            href="mailto:concierge@barrison.com"
+            href="mailto:Barrisongadgets@gmail.com"
             className="flex items-center gap-2 text-zinc-400 hover:text-red-500 text-xs transition-colors group"
           >
             <FiMail className="h-4 w-4 text-red-600 group-hover:text-red-500" />
-            concierge@barrison.com
+            Barrisongadgets@gmail.com
           </a>
 
           {/* Social Network Interconnects */}
           <div className="flex gap-4 mt-2">
             <a
-              href="https://instagram.com"
+              href="https://instagram.com/barrison_gadgets"
               target="_blank"
               rel="noreferrer"
               className="p-2 rounded-full bg-zinc-900 hover:bg-red-600 text-zinc-400 hover:text-white transition-all duration-300"
@@ -77,7 +77,7 @@ export const Footer: React.FC = () => {
             >
               <FiInstagram className="h-4 w-4" />
             </a>
-            <a
+            {/* <a
               href="https://twitter.com"
               target="_blank"
               rel="noreferrer"
@@ -94,7 +94,7 @@ export const Footer: React.FC = () => {
               aria-label="Facebook"
             >
               <FiFacebook className="h-4 w-4" />
-            </a>
+            </a> */}
           </div>
         </div>
       </div>
