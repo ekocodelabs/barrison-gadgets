@@ -27,6 +27,11 @@ export const useCartStore = create<CartStore>((set, get) => ({
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
+        if ([401, 403, 404].includes(response.status)) {
+          set({ cartItems: [] });
+          return;
+        }
+
         console.error(
           `Failed to fetch cart items (HTTP ${response.status}): ${data?.error || response.statusText}`,
         );
@@ -95,7 +100,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
         console.error("Failed to parse cart POST response", err);
       }
     } else {
-      console.error("Failed to sync addToCart with backend");
+      const errorPayload = await response.json().catch(() => ({}));
+      set({ cartItems: currentCartItems });
+      console.error(
+        "Failed to sync addToCart with backend",
+        errorPayload?.error,
+      );
     }
   },
 
@@ -144,7 +154,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
         console.error("Failed to parse cart PUT response", err);
       }
     } else {
-      console.error("Failed to sync updateQuantity with backend");
+      const errorPayload = await response.json().catch(() => ({}));
+      set({ cartItems: currentCartItems });
+      console.error(
+        "Failed to sync updateQuantity with backend",
+        errorPayload?.error,
+      );
     }
   },
 
@@ -156,9 +171,15 @@ export const useCartStore = create<CartStore>((set, get) => ({
       set({
         favoriteItems: (data.favoriteProducts || []).map(String),
       });
-    } else {
-      console.error("Failed to fetch user data");
+      return;
     }
+
+    if ([401, 403, 404].includes(response.status)) {
+      set({ favoriteItems: [] });
+      return;
+    }
+
+    console.error("Failed to fetch user data");
   },
 
   //toggle favorite product in the frontend state and sync with backend
@@ -193,6 +214,10 @@ export const useCartStore = create<CartStore>((set, get) => ({
         console.error("Failed to parse favorite toggle response", err);
       }
     } else {
+      if ([401, 403, 404].includes(response.status)) {
+        set({ favoriteItems: currentFavorites });
+        return;
+      }
       console.error("Failed to sync toggleFavorite with backend");
       set({ favoriteItems: currentFavorites });
     }

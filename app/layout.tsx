@@ -22,6 +22,11 @@ export const metadata: Metadata = {
   title: "Barrison Gadgets",
   description:
     "Buy the latest gadgets and accessories at Barrison Gadgets. Shop for phones, laptops, and more with secure payment options and fast shipping.",
+  icons: {
+    icon: "/images/b-glogo.jpeg",
+    shortcut: "/images/b-glogo.jpeg",
+    apple: "/images/b-glogo.jpeg",
+  },
 };
 
 export default function RootLayout({

@@ -15,17 +15,17 @@ import { FaTiktok } from "react-icons/fa";
 
 export const ContactLayout: React.FC = () => {
   const [copied, setCopied] = useState(false);
-  const whatsappNumber = "2348088449647";
+  const whatsappNumber = "2347065201282";
 
   const preFilledMessage = encodeURIComponent(
     "Hello Barrison Gadgets, I am interested in exploring your premium hardware inventory and electronic accessories catalog. Please connect me to a product expert.",
   );
 
   const channels = {
-    email: "concierge@barrison.com",
-    whatsapp: `https://wa.me{whatsappNumber}?text=${preFilledMessage}`,
-    instagram: "https://instagram.com",
-    tiktok: "https://tiktok.com",
+    email: "Barrisongadgets@gmail.com",
+    whatsapp: `https://wa.me/${whatsappNumber}?text=${preFilledMessage}`,
+    instagram: "https://instagram.com/barrison_gadgets",
+    tiktok: "https://tiktok.com/@barrisongadgets_hub",
   };
 
   const handleCopyEmail = (e: React.MouseEvent) => {

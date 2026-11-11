@@ -89,6 +89,9 @@ export default function CartPageLayout() {
     });
   }, [products, cartItems]);
 
+  const getAvailableStock = (product: IProduct) =>
+    Number(product.stock ?? (product.inStock === false ? 0 : 10));
+
   // Pure Numerical State Mutations
   // const updateQuantity = (id: number, delta: number) => {
   //   setQuantities((prev) => {
@@ -137,6 +140,8 @@ export default function CartPageLayout() {
                 const currentQuantity =
                   cartItems.find((cartItem) => cartItem.productId === itemId)
                     ?.quantity || 0;
+                const availableStock = getAvailableStock(item);
+                const isAtStockLimit = currentQuantity >= availableStock;
                 return (
                   <div
                     key={itemId}
@@ -163,6 +168,11 @@ export default function CartPageLayout() {
                         <p className="text-xs font-black text-red-600 mt-1">
                           NGN {item.price}
                         </p>
+                        <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          {availableStock > 0
+                            ? `${availableStock} in stock`
+                            : "Out of stock"}
+                        </p>
                       </div>
                     </div>
 
@@ -187,9 +197,12 @@ export default function CartPageLayout() {
                           onClick={(e) => {
                             e.stopPropagation();
 
-                            updateQuantity(itemId, currentQuantity + 1);
+                            if (!isAtStockLimit) {
+                              updateQuantity(itemId, currentQuantity + 1);
+                            }
                           }}
-                          className="p-2 text-zinc-500 hover:text-black transition-colors"
+                          disabled={availableStock <= 0 || isAtStockLimit}
+                          className="p-2 text-zinc-500 hover:text-black transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                           aria-label="Increase tracking target quantity"
                         >
                           <FiPlus className="h-3 w-3" />

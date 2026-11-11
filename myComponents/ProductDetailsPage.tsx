@@ -97,6 +97,11 @@ export default function ProductDetailsPage({ params }: PageProps) {
 
   const currentQuantity =
     cartItems.find((item) => item.productId === productId)?.quantity || 0;
+  const availableStock = Number(
+    product?.stock ?? (product?.inStock === false ? 0 : 10),
+  );
+  const isOutOfStock = availableStock <= 0;
+  const isAtStockLimit = currentQuantity >= availableStock;
 
   if (isLoading) {
     return (
@@ -215,6 +220,15 @@ export default function ProductDetailsPage({ params }: PageProps) {
               </span>
             </div>
 
+            <div className="mb-6 flex items-center justify-between rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">
+              <span>Stock</span>
+              <span
+                className={isOutOfStock ? "text-red-600" : "text-emerald-600"}
+              >
+                {isOutOfStock ? "Sold out" : `${availableStock} available`}
+              </span>
+            </div>
+
             {/* Editorial Technical Description Segment */}
             <div className="mb-8">
               <span className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase block mb-2">
@@ -262,12 +276,15 @@ export default function ProductDetailsPage({ params }: PageProps) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      updateQuantity(
-                        product._id.toString(),
-                        currentQuantity + 1,
-                      );
+                      if (!isAtStockLimit && !isOutOfStock) {
+                        updateQuantity(
+                          product._id.toString(),
+                          currentQuantity + 1,
+                        );
+                      }
                     }}
-                    className="px-4 py-3 text-zinc-500 hover:text-black hover:bg-zinc-50 transition-colors"
+                    disabled={isAtStockLimit || isOutOfStock}
+                    className="px-4 py-3 text-zinc-500 hover:text-black hover:bg-zinc-50 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Increase quantity"
                   >
                     <FiPlus className="h-3.5 w-3.5" />
@@ -277,12 +294,15 @@ export default function ProductDetailsPage({ params }: PageProps) {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    addToCart(product._id.toString());
+                    if (!isOutOfStock) {
+                      addToCart(product._id.toString());
+                    }
                   }}
-                  className="px-4 py-2 bg-red-600 text-white font-bold text-xs tracking-widest uppercase transition-all duration-300 hover:bg-red-700"
+                  disabled={isOutOfStock}
+                  className="px-4 py-2 bg-red-600 text-white font-bold text-xs tracking-widest uppercase transition-all duration-300 hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
                 >
                   <FiShoppingCart className="mr-2 h-4 w-4" />
-                  Add to Cart
+                  {isOutOfStock ? "Out of Stock" : "Add to Cart"}
                 </button>
               )}
             </div>

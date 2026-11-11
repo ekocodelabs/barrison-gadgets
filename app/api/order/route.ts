@@ -122,6 +122,32 @@ export async function POST(request: Request) {
 
     const userId = mockGetActiveUserObjectId();
 
+    for (const item of orderItems) {
+      const product: any =
+        (await Product.findById(item.productId).lean()) ||
+        (await Product.findOne({ id: Number(item.productId) }).lean());
+
+      if (!product) {
+        return NextResponse.json(
+          { error: `Product ${item.productId} is no longer available.` },
+          { status: 404 },
+        );
+      }
+
+      const availableStock = Number(
+        product.stock ?? (product.inStock === false ? 0 : 10),
+      );
+
+      if (availableStock < item.quantity) {
+        return NextResponse.json(
+          {
+            error: `Only ${availableStock} units are available for ${product.title}.`,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     // 4. Assemble the structural data profile to match your schema definition perfectly
     const structuredOrderPayload = {
       customerEmail: customerEmail.trim().toLowerCase(),
@@ -153,9 +179,25 @@ export async function POST(request: Request) {
     // 5. Commit record to MongoDB database
     const savedOrderInstance = await Order.create(structuredOrderPayload);
 
+    for (const item of orderItems) {
+      const product: any =
+        (await Product.findById(item.productId)) ||
+        (await Product.findOne({ id: Number(item.productId) }));
+
+      if (product) {
+        const availableStock = Number(
+          product.stock ?? (product.inStock === false ? 0 : 10),
+        );
+        const nextStock = Math.max(0, availableStock - item.quantity);
+        product.stock = nextStock;
+        product.inStock = nextStock > 0;
+        await product.save();
+      }
+    }
+
     // 6. Cleanup Automation: Wipe out active client cart products array allocations upon confirmation
 
-    await Cart.findOneAndDelete({ email: customerEmail });
+    await Cart.findOneAndDelete({ userEmail: customerEmail });
 
     //send mail
 

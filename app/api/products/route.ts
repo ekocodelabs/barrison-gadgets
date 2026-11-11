@@ -33,13 +33,31 @@ export async function POST(request: Request) {
 
     // 2. Parse the structural request payload from the execution thread
     const body = await request.json();
-    const { title, description, price, image, category, inStock } = body;
+    const { title, description, price, image, category, stock, inStock } = body;
+    const normalizedStock = Number(stock ?? (inStock === false ? 0 : 10));
 
     // 3. Validation Layer: Prevent corrupted or incomplete uploads
     if (!title || !description || price === undefined || !image || !category) {
       return new Response(
         JSON.stringify({
           error: "Validation Fault // Missing required core product fields.",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (
+      !Number.isFinite(normalizedStock) ||
+      !Number.isInteger(normalizedStock) ||
+      normalizedStock < 0
+    ) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Validation Fault // Stock must be a whole number greater than or equal to zero.",
         }),
         {
           status: 400,
@@ -81,7 +99,8 @@ export async function POST(request: Request) {
       price: Number(price),
       image: image.trim(), // File string path targeting your /public directory structure
       category: category,
-      inStock: inStock !== undefined ? Boolean(inStock) : true,
+      stock: normalizedStock,
+      inStock: normalizedStock > 0 || inStock === true,
     };
 
     // 6. Commit product model directly to MongoDB

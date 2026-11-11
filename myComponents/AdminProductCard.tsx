@@ -16,6 +16,8 @@ export interface AdminProduct {
     | "fashion"
     | "phones & tablets"
     | "computing";
+  stock: number;
+  inStock: boolean;
 }
 
 interface AdminProductCardProps {
@@ -61,6 +63,15 @@ export const AdminProductCard: React.FC<AdminProductCardProps> = ({
           <p className="text-zinc-400 text-[11px] font-light leading-snug line-clamp-2 uppercase tracking-wide mb-4">
             {product.description}
           </p>
+        </div>
+
+        <div className="mb-4 flex items-center justify-between gap-2 rounded-md border border-zinc-100 bg-zinc-50 px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-600">
+          <span>Stock</span>
+          <span
+            className={product.stock > 0 ? "text-emerald-600" : "text-red-600"}
+          >
+            {product.stock}
+          </span>
         </div>
 
         {/* Lower Asset Financial Value Display Matrix */}

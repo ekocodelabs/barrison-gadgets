@@ -29,18 +29,19 @@ const normalizeFavoriteIds = (input: any): string[] => {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const email = session?.user?.email?.trim().toLowerCase();
+    if (!email) {
+      return NextResponse.json({ favoriteProducts: [] }, { status: 200 });
     }
 
     await connectToDatabase();
 
     //find user by email and select only array of favorite product ids
-    const user = await User.findOne({ email: session?.user?.email })
+    const user = await User.findOne({ email })
       .select("favoriteProducts")
       .lean<{ favoriteProducts: any[] }>();
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ favoriteProducts: [] }, { status: 200 });
     }
     return NextResponse.json(
       { favoriteProducts: normalizeFavoriteIds(user.favoriteProducts) },

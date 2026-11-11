@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { FiShoppingCart, FiLogOut, FiUser, FiMenu, FiX } from "react-icons/fi";
 import { FaHeart } from "react-icons/fa";
@@ -75,8 +76,17 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-100 bg-white/80 backdrop-blur-md">
       <div className="relative mx-auto flex h-20 max-w-7xl items-center justify-between px-6 sm:px-8">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-xl font-black tracking-widest text-black uppercase">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-white shadow-sm">
+            <Image
+              src="/images/b-glogo.jpeg"
+              alt="Barrison Gadgets logo"
+              width={44}
+              height={44}
+              className="h-full w-full object-contain p-1"
+            />
+          </div>
+          <span className="text-lg font-black tracking-[0.2em] text-black uppercase">
             B.Gadgets<span className="text-red-600">.</span>
           </span>
         </Link>

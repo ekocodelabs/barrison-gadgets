@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   FiInstagram,
@@ -14,9 +15,20 @@ export const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto px-6 sm:px-8 grid grid-cols-1 md:grid-cols-12 gap-10 mb-12">
         {/* Brand Showcase Block */}
         <div className="md:col-span-4 flex flex-col gap-4">
-          <span className="text-xl font-black tracking-widest uppercase">
-            Barrison<span className="text-red-600">.</span>
-          </span>
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-zinc-800 bg-zinc-900">
+              <Image
+                src="/images/b-glogo.jpeg"
+                alt="Barrison Gadgets logo"
+                width={48}
+                height={48}
+                className="h-full w-full object-contain p-1.5"
+              />
+            </div>
+            <span className="text-xl font-black tracking-widest uppercase">
+              Barrison<span className="text-red-600">.</span>
+            </span>
+          </div>
           <p className="text-zinc-400 text-xs font-light leading-relaxed max-w-sm">
             Curators of high-end computational luxury ecosystems, precision
             engineering, and lifestyle tech hardware for discerning digital

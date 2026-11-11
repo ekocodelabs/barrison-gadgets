@@ -43,6 +43,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const currentQuantity =
     cartItems.find((item) => item.productId === _id)?.quantity || 0;
+  const availableStock = Number(
+    product.stock ?? (product.inStock === false ? 0 : 10),
+  );
+  const isOutOfStock = availableStock <= 0;
+  const isAtStockLimit = currentQuantity >= availableStock;
 
   return (
     <div
@@ -141,9 +146,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    updateQuantity(product._id.toString(), currentQuantity + 1);
+                    if (!isAtStockLimit) {
+                      updateQuantity(
+                        product._id.toString(),
+                        currentQuantity + 1,
+                      );
+                    }
                   }}
-                  className="px-2 py-1 text-sm font-bold text-zinc-600 hover:bg-zinc-200"
+                  disabled={isOutOfStock || isAtStockLimit}
+                  className="px-2 py-1 text-sm font-bold text-zinc-600 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   +
                 </button>
@@ -152,15 +163,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  addToCart(product._id.toString());
+                  if (!isOutOfStock) {
+                    addToCart(product._id.toString());
+                  }
                 }}
-                className="px-4 py-2 bg-red-600 text-white font-bold text-xs tracking-widest uppercase transition-all duration-300 hover:bg-red-700"
+                disabled={isOutOfStock}
+                className="px-4 py-2 bg-red-600 text-white font-bold text-xs tracking-widest uppercase transition-all duration-300 hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
               >
                 <FiShoppingCart className="mr-2 h-4 w-4" />
-                Add to Cart
+                {isOutOfStock ? "Out of Stock" : "Add to Cart"}
               </button>
             )}
           </div>
+        </div>
+        <div className="mt-3 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          <span>
+            {isOutOfStock ? "Sold out" : `Only ${availableStock} left`}
+          </span>
         </div>
       </div>
     </div>

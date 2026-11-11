@@ -20,6 +20,7 @@ export default function AddProductPageLayout() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [stock, setStock] = useState("10");
   const [image, setImage] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [category, setCategory] = useState<AdminProduct["category"] | "">("");
@@ -41,14 +42,21 @@ export default function AddProductPageLayout() {
 
       const normalizedProducts = (
         Array.isArray(data) ? data : data.products || []
-      ).map((product: any) => ({
-        id: product.id ?? product._id?.toString?.() ?? String(product._id),
-        title: product.title,
-        description: product.description,
-        price: Number(product.price),
-        image: product.image,
-        category: product.category,
-      }));
+      ).map((product: any) => {
+        const resolvedStock = Number(
+          product.stock ?? (product.inStock === false ? 0 : 10),
+        );
+        return {
+          id: product.id ?? product._id?.toString?.() ?? String(product._id),
+          title: product.title,
+          description: product.description,
+          price: Number(product.price),
+          image: product.image,
+          category: product.category,
+          stock: Number.isFinite(resolvedStock) ? resolvedStock : 0,
+          inStock: resolvedStock > 0 || product.inStock === true,
+        };
+      });
 
       setProducts(normalizedProducts);
       setError(null);
@@ -75,6 +83,12 @@ export default function AddProductPageLayout() {
       return;
     }
 
+    const parsedStock = Number(stock);
+    if (!Number.isInteger(parsedStock) || parsedStock < 0) {
+      setError("Stock must be a whole number greater than or equal to zero.");
+      return;
+    }
+
     try {
       setError(null);
       setSubmitting(true);
@@ -89,7 +103,8 @@ export default function AddProductPageLayout() {
           price: Number(price),
           image: imageUrl,
           category,
-          inStock: true,
+          stock: parsedStock,
+          inStock: parsedStock > 0,
         }),
       });
 
@@ -102,6 +117,7 @@ export default function AddProductPageLayout() {
       setTitle("");
       setDescription("");
       setPrice("");
+      setStock("10");
       setImage("");
       setImageUrl("");
       setCategory("");
@@ -279,6 +295,25 @@ export default function AddProductPageLayout() {
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="145000"
+                  className="w-full bg-transparent text-xs font-mono font-bold tracking-wider text-black placeholder-zinc-300 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                Stock Quantity
+              </label>
+              <div className="flex items-center border-b border-zinc-200 py-2 transition-colors focus-within:border-black">
+                <FiGrid className="mr-3 h-4 w-4 text-zinc-400" />
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="1"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  placeholder="10"
                   className="w-full bg-transparent text-xs font-mono font-bold tracking-wider text-black placeholder-zinc-300 focus:outline-none"
                 />
               </div>

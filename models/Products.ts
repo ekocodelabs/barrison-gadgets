@@ -12,6 +12,7 @@ export interface IProduct extends Document {
     | "fashion"
     | "phones & tablets"
     | "computing";
+  stock: number;
   inStock: boolean;
   createdAt: Date;
 }
@@ -40,10 +41,18 @@ const productSchema = new Schema({
     ],
   },
 
+  // Actual inventory count as a real storefront control
+  stock: { type: Number, required: true, min: 0, default: 10 },
+
   // Operational Inventory Log Modifier Status
   inStock: { type: Boolean, default: true },
 
   createdAt: { type: Date, default: Date.now },
+});
+
+productSchema.pre("save", function (next) {
+  this.inStock = Number(this.stock) > 0;
+  next();
 });
 
 // Senior Dev Check: Ensures we don't re-compile the model on Hot Module Replacement (HMR)
